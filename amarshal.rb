@@ -17,50 +17,36 @@ module AMarshal
     id = obj.__id__
     return vars[id] if vars.include? id
 
-    if obj.respond_to? :am_name
-      begin
-	name = nil
-	obj.am_nameinit(
-	  lambda {|name| vars[id] = name},
-	  lambda {|init_method, *init_args|
-	    dump_call(port, name, init_method,
-		      init_args.map {|arg| dump_sub(arg, port, vars)})
-	  })
-	return name
-      rescue Next
-      end
-    end
+    name = nil
+    obj.am_nameinit(
+      lambda {|name| vars[id] = name},
+      lambda {|init_method, *init_args|
+	dump_call(port, name, init_method,
+		  init_args.map {|arg| dump_sub(arg, port, vars)})
+      }) and
+    return name
 
     vars[id] = var = "v#{vars.size}"
 
-    if obj.respond_to?(:am_literal) && obj.class.instance_methods.include?("am_literal")
-      begin
-	obj.am_litinit(
-	  lambda {|lit| port << "#{var} = #{lit}\n"},
-	  lambda {|init_method, *init_args|
-	    dump_call(port, var, init_method,
-		      init_args.map {|arg| dump_sub(arg, port, vars)})
-	  })
-	return var
-      rescue Next
-      end
-    end
+    obj.am_litinit(
+      lambda {|lit| port << "#{var} = #{lit}\n"},
+      lambda {|init_method, *init_args|
+	dump_call(port, var, init_method,
+		  init_args.map {|arg| dump_sub(arg, port, vars)})
+      }) and
+    return var
 
-    if obj.respond_to? :am_allocinit
-      obj.am_allocinit(
-        lambda {|alloc_receiver, alloc_method, *alloc_args|
-	  port << "#{var} = "
-	  dump_call(port, dump_sub(alloc_receiver, port, vars), alloc_method,
-		    alloc_args.map {|arg| dump_sub(arg, port, vars)})
-	},
-	lambda {|init_method, *init_args|
-	  dump_call(port, var, init_method,
-		    init_args.map {|arg| dump_sub(arg, port, vars)})
-	})
-      return var
-    end
-
-    raise ArgumentError.new("could not marshal #{obj.inspect}")
+    obj.am_allocinit(
+      lambda {|alloc_receiver, alloc_method, *alloc_args|
+	port << "#{var} = "
+	dump_call(port, dump_sub(alloc_receiver, port, vars), alloc_method,
+		  alloc_args.map {|arg| dump_sub(arg, port, vars)})
+      },
+      lambda {|init_method, *init_args|
+	dump_call(port, var, init_method,
+		  init_args.map {|arg| dump_sub(arg, port, vars)})
+      })
+    return var
   end
 
   def AMarshal.dump_call(port, receiver, method, args)
@@ -83,13 +69,26 @@ end
 
 class Object
   def am_nameinit(name_proc, init_proc)
-    name_proc.call(am_name)
-    am_init_instance_variables init_proc
+    respond_to?(:am_name) and
+    begin
+      name_proc.call(am_name)
+      am_init_instance_variables init_proc
+      return true
+    rescue AMarshal::Next
+    end
+    return false
   end
 
   def am_litinit(lit_proc, init_proc)
-    lit_proc.call(am_literal)
-    am_init_instance_variables init_proc
+    respond_to?(:am_literal) and
+    self.class.instance_methods.include?("am_literal") and
+    begin
+      lit_proc.call(am_literal)
+      am_init_instance_variables init_proc
+      return true
+    rescue AMarshal::Next
+    end
+    return false
   end
 
   def am_allocinit(alloc_proc, init_proc)
