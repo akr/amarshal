@@ -6,7 +6,6 @@ amarshal-pretty is highly experimental.
 --- AMarshal.load(port)
 
 == TODO
-* remove useless parenthesis by operator preferences.
 * use X.new/X[] if possible (avoid X.allocate)
 =end
 
@@ -14,53 +13,194 @@ require 'amarshal'
 require 'prettyprint'
 require 'pp'
 
+require 't'
+
 module AMarshal
   def AMarshal.dump_pretty(obj, port='')
     Pretty.new(obj, port).dump_pretty
   end
 
   class Template
-    def Template.[](*elts)
-      t = Template.new
-      elts.each {|elt|
-        case elt
-	when String
-	  t.add_string elt
+    PrecName = {}
+    PrecRight = {}
+    PrecLeft = {}
+    Arity = {}
+    PrettyPrinter = {}
+    @curr_prec = 1
+
+    def Template.pretty_printer(f)
+      lambda {|out, children, objects|
+	#p [f, children, objects]
+        i = 0
+	f.scan(/[@_$]|[^@_$]+/) {|s|
+	  case s
+	  when '@'
+	    obj = children[i]
+	    if Integer === obj
+	      obj = objects[obj]
+	    end
+	    if Template === obj
+	      obj.pretty_display out
+	    else
+	      out.text obj.to_s
+	    end
+	    i += 1
+	  when '_'
+	    out.text ' '
+	  when '$'
+	    out.breakable
+	  else
+	    out.text s
+	  end
+	}
+      }
+    end
+
+    def Template.next_prec(prec, formats, name=nil)
+      @curr_prec += 1
+      curr_prec(prec, formats, name)
+    end
+
+    def Template.curr_prec(prec, formats, name=nil)
+      base_prec = @curr_prec
+      prec = prec.dup
+      #p [base_prec, prec, formats]
+      prec.each_index {|i|
+	n = prec[i]
+	case n
+	when Symbol
+	  prec[i] = PrecName[n] || n
+	when nil
+	  prec[i] = nil
+	when :min
+	  prec[i] = 0
+	when :max
+	  prec[i] = 1000
 	else
-	  t.add_object elt
+	  if n < 0
+	    prec[i] = -n
+	  else
+	    prec[i] = base_prec + n
+	  end
 	end
       }
-      t
-    end
+      formats.each {|f|
+	f = "@_#{f}$@" unless /@/ =~ f 
+	f2 = f.gsub(/[_$]/, '')
+	PrecLeft[f2] = base_prec
+	PrecRight[f2] = prec
+	Arity[f2] = f2.count('@')
+	PrettyPrinter[f2] = pretty_printer(f)
+      }
 
-    def initialize
-      @contents = []
-      @objects = []
-    end
-
-    def add_object(obj)
-      @contents << @objects.size
-      @objects << obj
-    end
-
-    def add_string(str)
-      unless @contents.last.class == String
-        @contents << ""
+      if name
+	PrecName[name] = base_prec
+	PrecRight.each {|format, prec|
+	  prec.each_with_index {|n, i|
+	    prec[i] = base_prec if n == name
+	  }
+	}
       end
-      @contents.last << str
+
+      -base_prec
     end
 
-    def add_breakable(s=' ')
-      @contents << Breakable.new(s)
+    assoc = [0, 0]
+    left = [0, 1]
+    right = [1, 0]
+    nonassoc = [1, 1]
+
+    next_prec left,	%w(if unless while until rescue), :statement
+    next_prec left,	%w(or and)
+    next_prec right,	%w(not$@)
+    next_prec assoc,	%w(@,$@), :arguments
+    next_prec nonassoc,	%w(@_=>$@)
+    next_prec nonassoc,	%w(defined?$@)
+    next_prec right,	%w(= += -= *= /= %= **= &= |= ^= <<= >>= &&= ||=)
+    curr_prec [:term, nil, :arguments], %w(@.@_=$@)
+    curr_prec [:term, :arguments, :arguments], %w(@[@]_=$@)
+    next_prec [1,0,0],	%w(@_?$@_:$@)
+    next_prec nonassoc,	%w(@..@ @...@)
+    next_prec left,	%w(||)
+    next_prec left,	%w(&&)
+    next_prec nonassoc,	%w(<=> == === != =~ !~)
+    next_prec left,	%w(> <= < <=)
+    next_prec left,	%w(| ^)
+    next_prec left,	%w(&)
+    next_prec left,	%w(<< >>)
+    next_prec left,	%w(+ -)
+    next_prec left,	%w(* / %)
+    next_prec [1],	%w(!@ ~@ +@ -@)
+    next_prec right,	%w(**)
+    next_prec [0, nil],	%w(@.@), :term
+    curr_prec [0, :arguments],	%w(@[@])
+    curr_prec [0, nil, :arguments], %w(@.@(@))
+    next_prec [:arguments],	%w([@] {@})
+
+    #pp PrecRight
+    #pp PrettyPrinter
+
+    def Template.create(format, objs=nil, objects=[])
+      Template.new(format, objects) {|t|
+	t.add_obj *objs if objs
+	yield t if block_given?
+      }
     end
-    class Breakable < String
-      def pretty_display(out)
-        out.breakable self
-      end
+
+    def initialize(format, objects)
+      raise "unknown format: #{format.inspect}" unless PrecRight.include? format
+      @format = format
+      @children = []
+      @objects = objects
+      yield self
     end
 
     def map_object!(&block)
       @objects.map!(&block)
+    end
+
+    def add_obj(*objs)
+      objs.each {|obj|
+	if PrecRight[@format][@children.size] == nil
+	  @children << obj
+	else
+	  @children << @objects.size
+	  @objects << obj
+	end
+      }
+    end
+
+    def add_exp(format, objs=nil, &block)
+      t = Template.create(format, objs, @objects, &block)
+      @children << t
+      t
+    end
+
+    def prec
+      PrecLeft[@format]
+    end
+
+    def to_s
+      if @children.length != Arity[@format]
+	raise "expected #{Arity[@format]} arguments for #{@format.inspect} but #{@children.length}"
+      end
+      arg_precs = PrecRight[@format]
+      i = 0
+      @format.gsub(/@/) {
+	arg = @objects[@children[i]]
+	prec = arg_precs[i]
+	i += 1
+	if Template === arg
+	  #p [prec, arg, arg.prec]
+	  if prec <= arg.prec
+	    arg.to_s
+	  else
+	    '(' + arg.to_s + ')'
+	  end
+	else
+	  arg.to_s
+	end
+      }
     end
 
     def display(out)
@@ -68,25 +208,8 @@ module AMarshal
     end
 
     def pretty_display(out)
-      out.group(1) {
-	@contents.each {|elt|
-	  case elt
-	  when Breakable
-	    out.breakable elt
-	  when String
-	    out.text elt
-	  when Integer
-	    obj = @objects[elt]
-	    if Template === obj
-	      obj.pretty_display out
-	    else
-	      out.text obj.to_s
-	    end
-	  end
-	}
-      }
+      PrettyPrinter[@format].call(out, @children, @objects)
     end
-
   end
 
   class Pretty
@@ -98,7 +221,6 @@ module AMarshal
 
     def display_template(template)
       if Template === template
-	#template.display @port
 	PrettyPrint.format(@port) {|out|
 	  template.pretty_display out
 	}
@@ -175,14 +297,16 @@ module AMarshal
 
       if obj.respond_to?(:am_compound_literal) && (t = obj.am_compound_literal)
 	templates = {}
-	t.map_object! {|child|
-	  break if @visiting[id] != true
-	  templates[child.__id__] = visit(child)
-	}
+	if Template === t
+	  t.map_object! {|child|
+	    break if @visiting[id] != true
+	    templates[child.__id__] = visit(child)
+	  }
+	end
 	if @visiting[id] == true
 	  if 1 < @count[id]
 	    name = gensym
-	    display_template Template["#{name} = ", t]
+	    display_template Template.create('@=@', [name, t])
 	    t = @names[id] = name
 	  else
 	    @names[id] = :should_not_refer
@@ -207,21 +331,18 @@ module AMarshal
 	template = nil
 	inits = []
 	obj.am_templateinit(lambda {|template|}, lambda {|init| inits << init})
-	template.map_object! {|o| visit(o)}
+	template.map_object! {|o| visit(o)} if Template === template
 	  
 	if 1 < @count[id] || !inits.empty?
 	  @names[id] = name = gensym
-	  display_template Template["#{name} = ", template]
+	  display_template Template.create('@=@', [name, template])
 	  inits.each {|init_method, *init_args|
 	    display_template AMarshal.template_call(name, init_method, init_args.map {|arg| visit(arg)})
 	  }
 	  result = name
 	else
 	  @names[id] = :should_not_refer
-	  result = Template.new
-	  result.add_string '('
-	  result.add_object template
-	  result.add_string ')'
+	  result = template
 	end
       end
 
@@ -265,41 +386,32 @@ module AMarshal
   end
 
   def AMarshal.template_call(receiver, method, args)
-    t = AMarshal::Template.new
     case method
     when :[]=
-      t.add_object receiver
-      t.add_string '['
-      t.add_object args[0]
-      t.add_string '] = '
-      t.add_object args[1]
+      AMarshal::Template.create('@[@]=@', [receiver, *args])
     when :<<
-      t.add_object receiver
-      t.add_string ' << '
-      t.add_object args[0]
+      AMarshal::Template.create('@<<@', [receiver, *args])
     else
       method = method.to_s
       if /\A([A-Za-z_][0-9A-Za-z_]*)=\z/ =~ method
-	t.add_object receiver
-	t.add_string ".#{$1} = "
-	t.add_object args[0]
+	# receiver.m = arg0
+	AMarshal::Template.create('@.@=@', [receiver, $1, *args])
       else
-	t.add_object receiver
-	t.add_string "."
-	t.add_string method
-	unless args.empty?
-	  t.add_string "("
-	  first = true
-	  args.each {|arg|
-	    t.add_string "," unless first
-	    t.add_object arg
-	    first = false
+	if args.empty?
+	  # receiver.m
+	  AMarshal::Template.create('@.@', [receiver, method])
+	else
+	  # receiver.m(arg0, ...)
+	  AMarshal::Template.create('@.@(@)', [receiver, method]) {|s|
+	    (0...(args.length-1)).each {|i|
+	      arg = args[i]
+	      s = s.add_exp('@,@', [arg])
+	    }
+	    s.add_obj args[-1]
 	  }
-	  t.add_string ")"
 	end
       end
     end
-    t
   end
 end
 
@@ -307,9 +419,7 @@ class Object
   def am_templateinit(template_proc, init_proc)
     am_litinit(
       lambda {|lit|
-	t = AMarshal::Template.new
-	t.add_string lit
-        template_proc.call(t)
+        template_proc.call(lit)
       },
       init_proc) ||
     am_allocinit(
@@ -324,26 +434,33 @@ end
 class Array
   def am_compound_literal
     return nil unless self.instance_variables.empty?
-    t = AMarshal::Template.new
-    unless self.class == Array
-      t.add_string self.class.name
-    end
-    if length == 0
-      t.add_string "[]"
+
+    if self.class == Array
+      if self.empty?
+        '[]'
+      else
+	AMarshal::Template.create('[@]') {|s|
+	  t = s
+	  (0...(self.length-1)).each {|i|
+	    arg = self[i]
+	    s = s.add_exp('@,@', [arg])
+	  }
+	  s.add_obj self[-1]
+	}
+      end
     else
-      first = true
-      t.add_string '['
-      self.each {|obj|
-	unless first
-	  t.add_string ','
-	  t.add_breakable
-	end
-	t.add_object obj
-	first = false
-      }
-      t.add_string ']'
+      if self.empty?
+	AMarshal::Template.create('@[@]', [self.class.name, ''])
+      else
+	AMarshal::Template.create('@[@]', [self.class.name]) {|s|
+	  (0...(self.length-1)).each {|i|
+	    arg = self[i]
+	    s = s.add_exp('@,@', [arg])
+	  }
+	  s.add_obj self[-1]
+	}
+      end
     end
-    t
   end
 end
 
@@ -351,54 +468,79 @@ class Hash
   def am_compound_literal
     return nil unless self.instance_variables.empty?
     return nil if self.default
+
     if self.class == Hash
-      beg_str = '{'
-      assoc_sep = '=>'
-      end_str = '}'
+      if self.empty?
+        '{}'
+      else
+	# {k1 => v1, ...}
+	AMarshal::Template.create('{@}') {|s|
+	  first = true
+	  k0 = nil
+	  v0 = nil
+	  self.each {|k1, v1|
+	    unless first
+	      s = s.add_exp('@,@') {|r|
+	        r.add_exp('@=>@', [k0, v0])
+	      }
+	    end
+	    k0, v0 = k1, v1
+	    first = false
+	  }
+	  s.add_exp('@=>@', [k0, v0])
+	}
+
+      end
     else
-      beg_str = self.class.name + '['
-      assoc_sep = ','
-      end_str = ']'
+      if self.empty?
+	# C[]
+	AMarshal::Template.create('@[@]', [self.class.name, ''])
+      else
+	# C[k1, v1, ...]
+	AMarshal::Template.create('@[@]', [self.class.name]) {|s|
+	  first = true
+	  k0 = nil
+	  v0 = nil
+	  self.each {|k1, v1|
+	    unless first
+	      s = s.add_exp('@,@') {|r|
+	        r.add_exp('@,@', [k0, v0])
+	      }
+	    end
+	    k0, v0 = k1, v1
+	    first = false
+	  }
+	  s.add_exp('@=>@', [k0, v0])
+	}
+      end
     end
-    t = AMarshal::Template.new
-    if size == 0
-      t.add_string beg_str
-      t.add_string end_str
-    else
-      sep = beg_str
-      self.each {|k, v|
-	t.add_string sep
-	t.add_breakable if sep == ','
-	t.add_object k
-	t.add_string assoc_sep
-	t.add_breakable
-	t.add_object v
-	sep = ','
-      }
-      t.add_string end_str
-    end
-    t
   end
 end
 
 class Range
   def am_compound_literal
     return nil unless self.instance_variables.empty?
-    t = AMarshal::Template.new
     if self.class == Range
-      beg_str = '('
-      sep_str = (exclude_end? ? '...' : '..')
-      end_str = ')'
+      if self.exclude_end?
+	AMarshal::Template.create('@...@', [first, last])
+      else
+	AMarshal::Template.create('@..@', [first, last])
+      end
     else
-      beg_str = self.class.name + '.new('
-      sep_str = ','
-      end_str = (exclude_end? ? ', true' : '') + ')'
+      if self.exclude_end?
+	# C.new(a, b)
+	AMarshal::Template.create('@.@(@)', [self.class.name, 'new']) {|s|
+	  s.add_exp('@,@', [first, last])
+	}
+      else
+	# C.new(a, b, true)
+	AMarshal::Template.create('@.@(@)', [self.class.name, 'new']) {|s|
+	  s.add_exp('@,@') {|s|
+	    s.add_exp('@,@', [first, last])
+	    s.add_obj 'true'
+	  }
+	}
+      end
     end
-    t.add_string beg_str
-    t.add_object first
-    t.add_string sep_str
-    t.add_object last
-    t.add_string end_str
-    t
   end
 end
