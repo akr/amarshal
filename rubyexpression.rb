@@ -198,7 +198,15 @@ class RubyExpression
     Parenthesis.new(Arguments.new(args), '[', ']')
   end
 
-  def RubyExpression.method_call(receiver, methodname, args)
+  def RubyExpression.hash(args)
+    arr = []
+    0.step(args.length-1, 2) {|i|
+      arr << binary_exp(args[i], '=>', args[i+1])
+    }
+    Parenthesis.new(Arguments.new(arr), '{', '}')
+  end
+
+  def RubyExpression.method_call(receiver, methodname, args=[])
     MethodCall.new(receiver, methodname, args)
   end
 end
