@@ -6,8 +6,7 @@
 =end
 
 module AMarshal
-  class Next < Exception
-  end
+  Next = :amarshal_try_next
 
   def AMarshal.load(port)
     port = port.read if port.kind_of? IO
@@ -84,24 +83,22 @@ end
 class Object
   def am_nameinit(name_proc, init_proc)
     respond_to?(:am_name) and
-    begin
+    catch(AMarshal::Next) {
       name_proc.call(am_name)
       #am_init_instance_variables init_proc
       return true
-    rescue AMarshal::Next
-    end
+    }
     return false
   end
 
   def am_litinit(lit_proc, init_proc)
     respond_to?(:am_literal) and
     self.class.instance_methods.include?("am_literal") and
-    begin
+    catch(AMarshal::Next) {
       lit_proc.call(am_literal)
       am_init_instance_variables init_proc
       return true
-    rescue AMarshal::Next
-    end
+    }
     return false
   end
 
@@ -236,7 +233,7 @@ end
 
 class Symbol
   def am_name
-    raise AMarshal::Next if %r{\A(?:[A-Za-z_][0-9A-Za-z_]*[?!=]?|\||\^|&|<=>|==|===|=~|>|>=|<|<=|<<|>>|\+|\-|\*|/|%|\*\*|~|\+@|\-@|\[\]|\[\]=|\`)\z} !~ (str = to_s)
+    throw AMarshal::Next if %r{\A(?:[A-Za-z_][0-9A-Za-z_]*[?!=]?|\||\^|&|<=>|==|===|=~|>|>=|<|<=|<<|>>|\+|\-|\*|/|%|\*\*|~|\+@|\-@|\[\]|\[\]=|\`)\z} !~ (str = to_s)
     ":" + str
   end
 
