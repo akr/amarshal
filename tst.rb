@@ -8,7 +8,7 @@ module AMarshalTestLib
     o2 = marshaltest(o1)
     assert_equal(o1.class, o2.class)
     iv1 = o1.instance_variables.sort
-    iv2 = o1.instance_variables.sort
+    iv2 = o2.instance_variables.sort
     assert_equal(iv1, iv2)
     val1 = iv1.map {|var| o1.instance_eval {eval var}}
     val2 = iv1.map {|var| o2.instance_eval {eval var}}
