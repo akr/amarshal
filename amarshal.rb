@@ -246,7 +246,12 @@ class Regexp
 
   def am_allocinit(alloc_proc, init_proc)
     super
-    init_proc.call(:am_initialize, self.source, self.options)
+    if self.class.method_defining_module(:initialize) == Regexp
+      init = :initialize
+    else
+      init = :am_initialize
+    end
+    init_proc.call(init, self.source, self.options)
   end
   alias am_initialize initialize
 end
@@ -256,7 +261,12 @@ class String
 
   def am_allocinit(alloc_proc, init_proc)
     super
-    init_proc.call(:am_initialize, String.new(self))
+    if self.class.method_defining_module(:initialize) == String
+      init = :initialize
+    else
+      init = :am_initialize
+    end
+    init_proc.call(init, String.new(self))
   end
   alias am_initialize initialize
 end
@@ -283,14 +293,13 @@ end
 class Time
   def am_allocinit(alloc_proc, init_proc)
     if self.class == Time ||
-       self.class.singleton_class.method_defining_module(:utc) ==
-       Time.singleton_class
-      utc = :utc
+       self.class.singleton_class.method_defining_module(:utc) == Time.singleton_class
+      utc_method = :utc
     else
-      utc = :am_utc
+      utc_method = :am_utc
     end
     t = self.dup.utc
-    alloc_proc.call(self.class, utc, t.year, t.mon, t.day, t.hour, t.min, t.sec, t.usec)
+    alloc_proc.call(self.class, utc_method, t.year, t.mon, t.day, t.hour, t.min, t.sec, t.usec)
     super(nil, init_proc)
     init_proc.call(:localtime) unless utc?
   end
