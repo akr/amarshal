@@ -14,9 +14,10 @@ module MarshalTestLib
   end
 
   def marshaltest(o1)
+    #o1.instance_eval { remove_instance_variable '@v' if defined? @v }
     str = encode(o1)
-    o2 = decode(str)
     print str, "\n" if self.class::DebugPrint
+    o2 = decode(str)
     o2
   end
 
