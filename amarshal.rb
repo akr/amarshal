@@ -20,10 +20,8 @@ module AMarshal
     if obj.respond_to? :am_name
       begin
 	name = nil
-	obj.am_name_instance_variables(
-	  lambda {|name|
-	    vars[id] = name
-	  },
+	obj.am_nameinit(
+	  lambda {|name| vars[id] = name},
 	  lambda {|init_method, *init_args|
 	    dump_call(port, name, init_method,
 		      init_args.map {|arg| dump_sub(arg, port, vars)})
@@ -37,10 +35,8 @@ module AMarshal
 
     if obj.respond_to?(:am_literal) && obj.class.instance_methods.include?("am_literal")
       begin
-	obj.am_literal_instance_variables(
-	  lambda {|lit|
-	    port << "#{var} = #{lit}\n"
-	  },
+	obj.am_litinit(
+	  lambda {|lit| port << "#{var} = #{lit}\n"},
 	  lambda {|init_method, *init_args|
 	    dump_call(port, var, init_method,
 		      init_args.map {|arg| dump_sub(arg, port, vars)})
@@ -86,22 +82,22 @@ end
 }
 
 class Object
-  def am_name_instance_variables(name_proc, init_proc)
+  def am_nameinit(name_proc, init_proc)
     name_proc.call(am_name)
-    am_instance_variable_inits init_proc
+    am_init_instance_variables init_proc
   end
 
-  def am_literal_instance_variables(lit_proc, init_proc)
+  def am_litinit(lit_proc, init_proc)
     lit_proc.call(am_literal)
-    am_instance_variable_inits init_proc
+    am_init_instance_variables init_proc
   end
 
   def am_allocinit(alloc_proc, init_proc)
     alloc_proc.call(self.class, :allocate) if alloc_proc
-    am_instance_variable_inits init_proc
+    am_init_instance_variables init_proc
   end
 
-  def am_instance_variable_inits(init_proc)
+  def am_init_instance_variables(init_proc)
     self.instance_variables.each {|iv|
       init_proc.call(:instance_variable_set, iv, eval(iv))
     }
