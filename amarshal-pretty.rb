@@ -130,15 +130,17 @@ module AMarshal
 
 	name = @names[id] 
 	@visiting[id].each {|init_method, *init_args|
-	  AMarshal.dump_call(@port, name, init_method,
-	                     init_args.map {|arg| templates.fetch(arg.__id__) { visit(arg) }})
+	  template = AMarshal.template_call(name, init_method,
+				     init_args.map {|arg| templates.fetch(arg.__id__) { visit(arg) }})
+	  @port << template.to_s << "\n"
 	}
 	result = name
       else
 	obj.am_nameinit(
 	  lambda {|name| @names[id] = name},
 	  lambda {|init_method, *init_args|
-	    AMarshal.dump_call(@port, @names[id], init_method, init_args.map {|arg| visit(arg)})
+	    template = AMarshal.template_call(@names[id], init_method, init_args.map {|arg| visit(arg)})
+	    @port << template.to_s << "\n"
 	  }) and
 	  return @names[id]
 
@@ -151,7 +153,8 @@ module AMarshal
 	  @names[id] = name = gensym
 	  @port << "#{name} = #{template.to_s}\n"
 	  inits.each {|init_method, *init_args|
-	    AMarshal.dump_call(@port, name, init_method, init_args.map {|arg| visit(arg)})
+	    template = AMarshal.template_call(name, init_method, init_args.map {|arg| visit(arg)})
+	    @port << template.to_s << "\n"
 	  }
 	  result = name
 	else
@@ -193,7 +196,8 @@ module AMarshal
 	  receiver = visit(alloc_receiver)
 	  args = alloc_args.map {|arg| visit(arg)}
 	  @port << "#{name} = "
-	  AMarshal.dump_call(@port, receiver, alloc_method, args)
+	  template = AMarshal.template_call(receiver, alloc_method, args)
+	  @port << template.to_s << "\n"
 	},
 	lambda {|init| inits << init})
 
