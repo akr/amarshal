@@ -3,14 +3,7 @@ require 'amarshal'
 require 'runit/testcase'
 require 'runit/cui/testrunner'
 
-class AMarshalTest < RUNIT::TestCase
-  def marshaltest(o1)
-    str = AMarshal.dump(o1)
-    o2 = AMarshal.load(str)
-    #print str; print "\n"
-    o2
-  end
-
+module AMarshalTestLib
   def marshal_equal(o1)
     o2 = marshaltest(o1)
     assert_equal(o1.class, o2.class)
@@ -156,4 +149,17 @@ class AMarshalTest < RUNIT::TestCase
   end
 end
 
-RUNIT::CUI::TestRunner.run(AMarshalTest.suite)
+class AMarshalTest < RUNIT::TestCase
+  include AMarshalTestLib
+
+  def marshaltest(o1)
+    str = AMarshal.dump(o1)
+    o2 = AMarshal.load(str)
+    #print str; print "\n"
+    o2
+  end
+end
+
+if $0 == __FILE__
+  RUNIT::CUI::TestRunner.run(AMarshalTest.suite)
+end
