@@ -166,6 +166,15 @@ class Object
     eval "#{var} = val"
   end
 
+  def am_singleton?
+    return true if self.singleton_methods.empty?
+    singleton_class = class << self
+      self
+    end
+    return true if singleton_class.instance_variables.empty?
+    not (singleton_class.ancestors - self.class.ancestors).empty?
+  end
+
   def am_init_extentions(init_proc)
     unless self.singleton_methods.empty?
       raise TypeError.new("singleton can't be dumped")

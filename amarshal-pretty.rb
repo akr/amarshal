@@ -189,7 +189,10 @@ module AMarshal
     def visit_first(obj, id)
       @visiting[id] = true
 
-      if obj.respond_to?(:am_compound_literal) && (t = obj.am_compound_literal)
+      if obj.respond_to?(:am_compound_literal) &&
+	 obj.instance_variables.empty? &&
+	 !obj.am_singleton? &&
+         (t = obj.am_compound_literal)
 	templates = {}
 	if Template === t
 	  t.map_object! {|child|
@@ -332,8 +335,6 @@ end
 
 class Array
   def am_compound_literal
-    return nil unless self.instance_variables.empty?
-
     if self.class == Array
       if self.empty?
         '[]'
@@ -348,7 +349,6 @@ end
 
 class Hash
   def am_compound_literal
-    return nil unless self.instance_variables.empty?
     return nil if self.default
 
     if self.class == Hash
@@ -382,7 +382,6 @@ end
 
 class Range
   def am_compound_literal
-    return nil unless self.instance_variables.empty?
     if self.class == Range
       if self.exclude_end?
 	AMarshal::Template.range(first, last, true)
