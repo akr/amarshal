@@ -18,7 +18,9 @@ class AMarshal
   end
 
   def put1(obj)
-    @name[obj.__id__] = "object#{obj.__id__}"
+    prefix = obj.class.name.gsub(/[^a-zA-Z]/, '').downcase
+    prefix = 'obj' if prefix == ''
+    @name[obj.__id__] = "#{prefix}#{obj.__id__}"
     obj.am_dump(self) {|name| @name[obj.__id__] = name if name; @name[obj.__id__]}
     return @name[obj.__id__]
   end
