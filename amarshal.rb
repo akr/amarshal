@@ -143,7 +143,7 @@ end
 class Object
   def am_dump(am)
     name = yield
-    am.print "#{name} = #{self.class.name}.basic_new\n"
+    am.print "#{name} = #{am.put(self.class)}.basic_new\n"
     am.put_instance_variables(self, name)
   end
 end
@@ -154,7 +154,9 @@ class Module
   end
 
   def am_dump(am)
-    yield self.class.name
+    name = self.name
+    raise TypeError.new("can't dump anonymous class") if name == ''
+    yield name
   end
 end
 
@@ -239,7 +241,7 @@ class Regexp
 
   def am_dump(am)
     name = yield
-    am.print "#{name} = #{self.class}.basic_new(#{self.source.dump}, #{self.options})\n"
+    am.print "#{name} = #{am.put(self.class)}.basic_new(#{self.source.dump}, #{self.options})\n"
     am.put_instance_variables(self, name)
   end
 end
@@ -265,7 +267,7 @@ class Struct
   def am_dump(am)
     name = yield
     args = (["nil"] * self.length).join(", ")
-    am.print "#{name} = #{self.class}.new(#{args})\n"
+    am.print "#{name} = #{am.put(self.class)}.new(#{args})\n"
     am.put_instance_variables(self, name)
     self.members.each {|m|
       am.print "#{name}[:#{m}] = #{am.put(self[m])}\n"
