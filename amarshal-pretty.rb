@@ -46,6 +46,10 @@ module AMarshal
       @varnum = 0
     end
 
+    def display_template(template)
+      @port << template.to_s << "\n"
+    end
+
     def gensym
       @port << "v = []\n" if @varnum == 0
       "v[#{(@varnum += 1) - 1}]"
@@ -58,7 +62,7 @@ module AMarshal
       @visiting = {}
       @names = {}
       template = visit(@obj)
-      @port << template.to_s << "\n"
+      display_template template
     end
 
     def count(obj)
@@ -120,7 +124,7 @@ module AMarshal
 	if @visiting[id] == true
 	  if 1 < @count[id]
 	    name = gensym
-	    @port << "#{name} = #{t.to_s}\n"
+	    display_template Template["#{name} = ", t]
 	    t = @names[id] = name
 	  else
 	    @names[id] = :should_not_refer
@@ -130,17 +134,15 @@ module AMarshal
 
 	name = @names[id] 
 	@visiting[id].each {|init_method, *init_args|
-	  template = AMarshal.template_call(name, init_method,
-				     init_args.map {|arg| templates.fetch(arg.__id__) { visit(arg) }})
-	  @port << template.to_s << "\n"
+	  display_template AMarshal.template_call(name, init_method,
+						  init_args.map {|arg| templates.fetch(arg.__id__) { visit(arg) }})
 	}
 	result = name
       else
 	obj.am_nameinit(
 	  lambda {|name| @names[id] = name},
 	  lambda {|init_method, *init_args|
-	    template = AMarshal.template_call(@names[id], init_method, init_args.map {|arg| visit(arg)})
-	    @port << template.to_s << "\n"
+	    display_template AMarshal.template_call(@names[id], init_method, init_args.map {|arg| visit(arg)})
 	  }) and
 	  return @names[id]
 
@@ -151,10 +153,9 @@ module AMarshal
 	  
 	if 1 < @count[id] || !inits.empty?
 	  @names[id] = name = gensym
-	  @port << "#{name} = #{template.to_s}\n"
+	  display_template Template["#{name} =", template]
 	  inits.each {|init_method, *init_args|
-	    template = AMarshal.template_call(name, init_method, init_args.map {|arg| visit(arg)})
-	    @port << template.to_s << "\n"
+	    display_template AMarshal.template_call(name, init_method, init_args.map {|arg| visit(arg)})
 	  }
 	  result = name
 	else
@@ -196,8 +197,7 @@ module AMarshal
 	  receiver = visit(alloc_receiver)
 	  args = alloc_args.map {|arg| visit(arg)}
 	  @port << "#{name} = "
-	  template = AMarshal.template_call(receiver, alloc_method, args)
-	  @port << template.to_s << "\n"
+	  display_template AMarshal.template_call(receiver, alloc_method, args)
 	},
 	lambda {|init| inits << init})
 
