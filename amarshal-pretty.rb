@@ -27,9 +27,10 @@ module AMarshal
     @curr_prec = 1
 
     def Template.pretty_printer(f, key)
-      lambda {|out, children, objects|
+      lambda {|out, indent, children, objects|
 	#p [f, children, objects]
         i = 0
+	out.group(indent) {
 	f.scan(/[@_$]|[^@_$]+/) {|s|
 	  case s
 	  when '@'
@@ -56,6 +57,7 @@ module AMarshal
 	  else
 	    out.text s
 	  end
+	}
 	}
       }
     end
@@ -144,7 +146,7 @@ module AMarshal
     #pp PrecRight
     #pp PrettyPrinter
 
-    def Template.create(format, objs=nil, objects=[])
+    def Template.create(format, objs=nil, objects=nil)
       Template.new(format, objects) {|t|
 	t.add_obj *objs if objs
 	yield t if block_given?
@@ -155,7 +157,8 @@ module AMarshal
       raise "unknown format: #{format.inspect}" unless PrecRight.include? format
       @format = format
       @children = []
-      @objects = objects
+      @objects = objects || []
+      @indent = objects ? 0 : 1
       yield self
     end
 
@@ -212,7 +215,7 @@ module AMarshal
     end
 
     def pretty_display(out)
-      PrettyPrinter[@format].call(out, @children, @objects)
+      PrettyPrinter[@format].call(out, @indent, @children, @objects)
     end
   end
 
