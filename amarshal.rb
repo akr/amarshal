@@ -1,3 +1,5 @@
+require 'destructive'
+
 class AMarshal
   def AMarshal.load(port)
     port = port.read if port.kind_of? IO
@@ -219,14 +221,10 @@ class Range
 
   def am_dump(am)
     name = yield
-    if self.exclude_end?
-      dots = '...'
-    else
-      dots = '..'
-    end
-    am.print "#{name} = #{am.put(self.begin)}#{dots}#{am.put(self.end)}\n"
-    # xxx: range object is created after `begin' and `end'.
+    am.print "#{name} = 0#{self.exclude_end? ? '...' : '..'}1\n"
     am.put_instance_variables(self, name)
+    am.print "#{name}.begin = #{am.put(self.begin)}\n"
+    am.print "#{name}.end = #{am.put(self.end)}\n"
   end
 end
 
