@@ -8,7 +8,7 @@ class RubyExpression
     @curr_prec += 1
   end
 
-  def enclose_display(obj, c, out, indent=1)
+  def enclose_display(obj, c, out, indent=0)
     if RubyExpression === obj
       c = c::Prec if Class === c
       obj = Parenthesis.new(obj) if obj.class::Prec < c
@@ -103,7 +103,7 @@ class RubyExpression
 	  out.text ','
 	  out.breakable
 	end
-	enclose_display(arg, Arguments, out, 0)
+	enclose_display(arg, Arguments, out)
       }
     end
   end
@@ -213,7 +213,7 @@ end
 
 if $0 == __FILE__
   require 'pp'
-  e = RubyExpression.array(['1', 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx', '2', 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'])
+  e = RubyExpression.hash(['1', RubyExpression.array(['xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx']*3)])
   pp e
   e.pretty_display STDOUT
   puts
