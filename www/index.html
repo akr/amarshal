@@ -19,9 +19,9 @@ AMarshal is similar to Marshal.
 <pre>
 % ruby -ramarshal -e 'AMarshal.dump([1,2,3], STDOUT)'
 v0 = Array.allocate()
-v0[0] = 1
-v0[1] = 2
-v0[2] = 3
+v0 << 1
+v0 << 2
+v0 << 3
 v0
 </pre>
 
