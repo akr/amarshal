@@ -34,7 +34,8 @@ module AMarshal
     name = nil
     init_proc = lambda {|init_method, *init_args|
 		  dump_call(port, name, init_method,
-			    init_args.map {|arg| dump_rec(arg, port, names)})
+			    init_args.map {|arg| dump_rec(arg, port, names)},
+			    obj.private_methods.include?(init_method.to_s))
 		}
 
     obj.am_nameinit(lambda {|name| names[id] = name}, init_proc) and
@@ -51,22 +52,27 @@ module AMarshal
 		       receiver = dump_rec(alloc_receiver, port, names)
 		       args = alloc_args.map {|arg| dump_rec(arg, port, names)}
 		       port << "#{name} = "
-		       dump_call(port, receiver, alloc_method, args)
+		       dump_call(port, receiver, alloc_method, args,
+			 alloc_receiver.private_methods.include?(alloc_method.to_s))
 		     }, init_proc)
     return name
   end
 
-  def AMarshal.dump_call(port, receiver, method, args)
-    case method
-    when :[]=
-      port << "#{receiver}[#{args[0]}] = #{args[1]}\n"
-    when :<<
-      port << "#{receiver} << #{args[0]}\n"
+  def AMarshal.dump_call(port, receiver, method, args, private=false)
+    if private
+      port << "#{receiver}.__send__(:#{method}#{args.map {|arg| ', ' + arg.to_s}.join})\n"
     else
-      if /\A([A-Za-z_][0-9A-Za-z_]*)=\z/ =~ method.to_s
-	port << "#{receiver}.#{$1} = #{args[0]}\n"
+      case method
+      when :[]=
+	port << "#{receiver}[#{args[0]}] = #{args[1]}\n"
+      when :<<
+	port << "#{receiver} << #{args[0]}\n"
       else
-	port << "#{receiver}.#{method}(#{args.map {|arg| arg.to_s}.join ","})\n"
+	if /\A([A-Za-z_][0-9A-Za-z_]*)=\z/ =~ method.to_s
+	  port << "#{receiver}.#{$1} = #{args[0]}\n"
+	else
+	  port << "#{receiver}.#{method}(#{args.map {|arg| arg.to_s}.join ","})\n"
+	end
       end
     end
   end
@@ -146,10 +152,6 @@ class Object
   def instance_variable_set(var, val)
     eval "#{var} = val"
   end
-
-  def am_initialize(*args)
-    am_orig_initialize(*args)
-  end
 end
 
 class Array
@@ -165,7 +167,7 @@ class Exception
     init_proc.call(:am_initialize, message)
     init_proc.call(:set_backtrace, backtrace) if backtrace
   end
-  alias am_orig_initialize initialize
+  alias am_initialize initialize
 end
 
 class FalseClass
@@ -229,9 +231,14 @@ end
 class Range
   def am_allocinit(alloc_proc, init_proc)
     super
-    init_proc.call(:am_initialize, first, last, exclude_end?)
+    if self.class.method_defining_module(:initialize) == Range
+      init = :initialize
+    else
+      init = :am_initialize
+    end
+    init_proc.call(init, first, last, exclude_end?)
   end
-  alias am_orig_initialize initialize
+  alias am_initialize initialize
 end
 
 class Regexp
@@ -241,7 +248,7 @@ class Regexp
     super
     init_proc.call(:am_initialize, self.source, self.options)
   end
-  alias am_orig_initialize initialize
+  alias am_initialize initialize
 end
 
 class String
@@ -251,7 +258,7 @@ class String
     super
     init_proc.call(:am_initialize, String.new(self))
   end
-  alias am_orig_initialize initialize
+  alias am_initialize initialize
 end
 
 class Struct

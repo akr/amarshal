@@ -211,14 +211,17 @@ module AMarshal
 	name = @names[id] 
 	@visiting[id].each {|init_method, *init_args|
 	  display_template AMarshal.template_call(name, init_method,
-						  init_args.map {|arg| templates.fetch(arg.__id__) { visit(arg) }})
+	    init_args.map {|arg| templates.fetch(arg.__id__) { visit(arg) }},
+	    obj.private_methods.include?(init_method.to_s))
 	}
 	result = name
       else
 	obj.am_nameinit(
 	  lambda {|name| @names[id] = name},
 	  lambda {|init_method, *init_args|
-	    display_template AMarshal.template_call(@names[id], init_method, init_args.map {|arg| visit(arg)})
+	    display_template AMarshal.template_call(@names[id], init_method,
+	      init_args.map {|arg| visit(arg)},
+	      obj.private_methods.include?(init_method.to_s))
 	  }) and
 	  return @names[id]
 
@@ -231,7 +234,9 @@ module AMarshal
 	  @names[id] = name = gensym
 	  display_template Template.assign(name, template)
 	  inits.each {|init_method, *init_args|
-	    display_template AMarshal.template_call(name, init_method, init_args.map {|arg| visit(arg)})
+	    display_template AMarshal.template_call(name, init_method,
+	      init_args.map {|arg| visit(arg)},
+	      obj.private_methods.include?(init_method.to_s))
 	  }
 	  result = name
 	else
@@ -270,7 +275,8 @@ module AMarshal
 	  receiver = visit(alloc_receiver)
 	  args = alloc_args.map {|arg| visit(arg)}
 	  @port << "#{name} = "
-	  display_template AMarshal.template_call(receiver, alloc_method, args)
+	  display_template AMarshal.template_call(receiver, alloc_method, args,
+	    alloc_receiver.private_methods.include?(alloc_method.to_s))
 	},
 	lambda {|init| inits << init})
 
@@ -279,24 +285,28 @@ module AMarshal
     end
   end
 
-  def AMarshal.template_call(receiver, method, args)
-    case method
-    when :[]=
-      AMarshal::Template.index_assign(receiver, *args)
-    when :<<
-      AMarshal::Template.lshift(receiver, *args)
+  def AMarshal.template_call(receiver, method, args, private=false)
+    if private
+      AMarshal::Template.method_call(receiver, '__send__', [":#{method}", *args])
     else
-      method = method.to_s
-      if /\A([A-Za-z_][0-9A-Za-z_]*)=\z/ =~ method
-	# receiver.m = arg0
-	AMarshal::Template.assign_method(receiver, $1, *args)
+      case method
+      when :[]=
+	AMarshal::Template.index_assign(receiver, *args)
+      when :<<
+	AMarshal::Template.lshift(receiver, *args)
       else
-	if args.empty?
-	  # receiver.m
-	  AMarshal::Template.method_call(receiver, method)
+	method = method.to_s
+	if /\A([A-Za-z_][0-9A-Za-z_]*)=\z/ =~ method
+	  # receiver.m = arg0
+	  AMarshal::Template.assign_method(receiver, $1, *args)
 	else
-	  # receiver.m(arg0, ...)
-	  AMarshal::Template.method_call(receiver, method, args)
+	  if args.empty?
+	    # receiver.m
+	    AMarshal::Template.method_call(receiver, method)
+	  else
+	    # receiver.m(arg0, ...)
+	    AMarshal::Template.method_call(receiver, method, args)
+	  end
 	end
       end
     end
@@ -312,7 +322,8 @@ class Object
       init_proc) ||
     am_allocinit(
       lambda {|alloc_receiver, alloc_method, *alloc_args|
-	t = AMarshal.template_call(alloc_receiver, alloc_method, alloc_args)
+	t = AMarshal.template_call(alloc_receiver, alloc_method, alloc_args,
+	      alloc_receiver.private_methods.include?(alloc_method.to_s))
 	template_proc.call(t)
       },
       init_proc)
