@@ -32,7 +32,7 @@ module AMarshal
 
     vars[id] = var = "v#{vars.size}"
 
-    if obj.respond_to? :am_literal
+    if obj.respond_to?(:am_literal) && obj.class.instance_methods.include?("am_literal")
       begin
 	lit, *inits = obj.am_literal_instance_variables
 	port << "#{var} = #{lit}\n"
@@ -178,10 +178,32 @@ end
 
 class Regexp
   alias am_literal inspect
+
+  def am_allocinit
+    alloc, *inits = super
+    inits << [:am_initialize, self.source, self.options]
+    return [alloc, *inits]
+  end
+
+  alias am_orig_initialize initialize
+  def am_initialize(source, options)
+    am_orig_initialize(source, options)
+  end
 end
 
 class String
   alias am_literal dump
+
+  def am_allocinit
+    alloc, *inits = super
+    inits << [:am_initialize, String.new(self)]
+    return [alloc, *inits]
+  end
+
+  alias am_orig_initialize initialize
+  def am_initialize(str)
+    am_orig_initialize(str)
+  end
 end
 
 class Struct
