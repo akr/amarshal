@@ -1,6 +1,6 @@
 =begin
 
-* 演算子の優先順位を管理して、不要な括弧を省く(括弧を使っているのはいまのところ Range しかないけど)
+* 演算子の優先順位を管理して、不要な括弧を省く
 * allocate をなるべく使わない
 * X.new, X[...] などをもっと使う
 * pretty-print を使ってインデント
@@ -111,7 +111,7 @@ module AMarshal
 	  templates[child.__id__] = visit(child)
 	}
 	if @visiting[id] == true
-	  if 1 < @count[id] #|| true
+	  if 1 < @count[id]
 	    name = gensym
 	    @port << "#{name} = #{t.to_s}\n"
 	    t = @names[id] = name
@@ -135,25 +135,41 @@ module AMarshal
 	  }) and
 	  return @names[id]
 
-	@names[id] = name = gensym
+	inits = []
 
-	obj.am_litinit(
-	  lambda {|lit| @port << "#{name} = #{lit}\n"},
-	  lambda {|init_method, *init_args|
-	    AMarshal.dump_call(@port, name, init_method, init_args.map {|arg| visit(arg)})
-	  }) and
-	  return name
+	lit = nil
+	obj.am_litinit(lambda {|lit|}, lambda {|init| inits << init}) and
+	  begin
+	    if 1 < @count[id] || !inits.empty?
+	      @names[id] = name = gensym
+	      @port << "#{name} = #{lit}\n"
+	      inits.each {|init_method, *init_args|
+		AMarshal.dump_call(@port, name, init_method, init_args.map {|arg| visit(arg)})
+	      }
+	      return name
+	    else
+	      @names[id] = :should_not_refer
+	      return lit
+	    end
+	  end
 
-	obj.am_allocinit(
-	  lambda {|alloc_receiver, alloc_method, *alloc_args|
-	    receiver = visit(alloc_receiver)
-	    args = alloc_args.map {|arg| visit(arg)}
-	    @port << "#{name} = "
-	    AMarshal.dump_call(@port, receiver, alloc_method, args)
-	  },
-	  lambda {|init_method, *init_args|
+	alloc = nil
+	obj.am_allocinit(lambda {|alloc|}, lambda {|init| inits << init})
+
+	alloc_receiver, alloc_method, *alloc_args = alloc
+	receiver = visit(alloc_receiver)
+	args = alloc_args.map {|arg| visit(arg)}
+	if 1 < @count[id] || !inits.empty?
+	  @names[id] = name = gensym
+	  @port << "#{name} = "
+	  AMarshal.dump_call(@port, receiver, alloc_method, args)
+	  inits.each {|init_method, *init_args|
 	    AMarshal.dump_call(@port, name, init_method, init_args.map {|arg| visit(arg)})
-	  })
+	  }
+	else
+	  @names[id] = :should_not_refer
+	  return '(' + AMarshal.dump_call('', receiver, alloc_method, args).chomp + ')'
+	end
       end
 
       @visiting.delete id
