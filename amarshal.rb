@@ -222,7 +222,7 @@ end
 
 class Symbol
   def am_name
-    raise AMarshal::Next if /\A[A-Za-z_][0-9A-Za-z_]*\z/ !~ (str = to_s)
+    raise AMarshal::Next if /\A[A-Za-z_][0-9A-Za-z_]*[?!=]?\z/ !~ (str = to_s)
     ":" + str
   end
 
