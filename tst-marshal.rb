@@ -194,16 +194,26 @@ module MarshalTestLib
     o = Object.new
     def o.m() end
     assert_exception(TypeError) { marshaltest(o) }
+    o = Object.new
+    class << o
+      @v = 1
+    end
+    assert_exception(TypeError) { marshaltest(o) }
   end
 
-  module Mod end
+  module Mod1 end
+  module Mod2 end
   def test_extend
     o = Object.new
-    o.extend Mod
-    marshal_equal(o) {|obj| obj.kind_of? Mod}
+    o.extend Mod1
+    marshal_equal(o) {|obj| obj.kind_of? Mod1}
     o = Object.new
     o.extend Module.new
     assert_exception(ArgumentError) { marshaltest(o) }
+    o = Object.new
+    o.extend Mod1
+    o.extend Mod2
+    marshal_equal(o) {|obj| class << obj; ancestors end}
   end
 
   def test_anonymous

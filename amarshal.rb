@@ -144,6 +144,7 @@ class Object
     catch(AMarshal::Next) {
       lit_proc.call(am_literal)
       am_init_instance_variables init_proc
+      am_init_extentions init_proc
       return true
     }
     return false
@@ -152,6 +153,7 @@ class Object
   def am_allocinit(alloc_proc, init_proc)
     alloc_proc.call(self.class, :allocate) if alloc_proc
     am_init_instance_variables init_proc
+    am_init_extentions init_proc
   end
 
   def am_init_instance_variables(init_proc)
@@ -162,6 +164,21 @@ class Object
 
   def instance_variable_set(var, val)
     eval "#{var} = val"
+  end
+
+  def am_init_extentions(init_proc)
+    unless self.singleton_methods.empty?
+      raise TypeError.new("singleton can't be dumped")
+    end
+    singleton_class = class << self
+      unless instance_variables.empty?
+	raise TypeError.new("singleton can't be dumped")
+      end
+      self
+    end
+    (singleton_class.ancestors - self.class.ancestors).reverse_each {|m|
+      init_proc.call(:extend, m)
+    }
   end
 end
 
@@ -183,6 +200,9 @@ end
 
 class FalseClass
   alias am_name to_s
+
+  def am_init_extentions(init_proc)
+  end
 end
 
 class Hash
@@ -208,6 +228,9 @@ end
 
 class Fixnum
   alias am_name to_s
+
+  def am_init_extentions(init_proc)
+  end
 end
 
 class Float
@@ -299,6 +322,9 @@ class Symbol
     alloc_proc.call(to_s, :intern)
     super(nil, init_proc)
   end
+
+  def am_init_extentions(init_proc)
+  end
 end
 
 class Time
@@ -321,8 +347,14 @@ end
 
 class TrueClass
   alias am_name to_s
+
+  def am_init_extentions(init_proc)
+  end
 end
 
 class NilClass
   alias am_name inspect
+
+  def am_init_extentions(init_proc)
+  end
 end
