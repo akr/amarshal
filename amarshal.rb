@@ -35,7 +35,7 @@ module AMarshal
     init_proc = lambda {|init_method, *init_args|
 		  dump_call(port, name, init_method,
 			    init_args.map {|arg| dump_rec(arg, port, names)},
-			    obj.private_methods.include?(init_method.to_s))
+			    obj.private_methods(true).include?(init_method.to_s))
 		}
 
     obj.am_nameinit(lambda {|name| names[id] = name}, init_proc) and
@@ -53,7 +53,7 @@ module AMarshal
 		       args = alloc_args.map {|arg| dump_rec(arg, port, names)}
 		       port << "#{name} = "
 		       dump_call(port, receiver, alloc_method, args,
-			 alloc_receiver.private_methods.include?(alloc_method.to_s))
+			 alloc_receiver.private_methods(true).include?(alloc_method.to_s))
 		     }, init_proc)
     return name
   end
@@ -140,7 +140,7 @@ class Object
 
   def am_litinit(lit_proc, init_proc)
     respond_to?(:am_literal) and
-    self.class.instance_methods.include?("am_literal") and
+    self.class.instance_methods(true).include?("am_literal") and
     catch(AMarshal::Next) {
       lit_proc.call(am_literal)
       am_init_instance_variables init_proc
@@ -167,7 +167,7 @@ class Object
   end
 
   def am_singleton?
-    return true unless self.singleton_methods.empty?
+    return true unless self.singleton_methods(true).empty?
     singleton_class = class << self
       self
     end
@@ -176,7 +176,7 @@ class Object
   end
 
   def am_init_extentions(init_proc)
-    unless self.singleton_methods.empty?
+    unless self.singleton_methods(true).empty?
       raise TypeError.new("singleton can't be dumped")
     end
     singleton_class = class << self

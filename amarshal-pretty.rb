@@ -218,7 +218,7 @@ module AMarshal
 	@visiting[id].each {|init_method, *init_args|
 	  display_template AMarshal.template_call(name, init_method,
 	    init_args.map {|arg| templates.fetch(arg.__id__) { visit(arg) }},
-	    obj.private_methods.include?(init_method.to_s))
+	    obj.private_methods(true).include?(init_method.to_s))
 	}
 	result = name
       else
@@ -227,7 +227,7 @@ module AMarshal
 	  lambda {|init_method, *init_args|
 	    display_template AMarshal.template_call(@names[id], init_method,
 	      init_args.map {|arg| visit(arg)},
-	      obj.private_methods.include?(init_method.to_s))
+	      obj.private_methods(true).include?(init_method.to_s))
 	  }) and
 	  return @names[id]
 
@@ -242,7 +242,7 @@ module AMarshal
 	  inits.each {|init_method, *init_args|
 	    display_template AMarshal.template_call(name, init_method,
 	      init_args.map {|arg| visit(arg)},
-	      obj.private_methods.include?(init_method.to_s))
+	      obj.private_methods(true).include?(init_method.to_s))
 	  }
 	  result = name
 	else
@@ -282,7 +282,7 @@ module AMarshal
 	  args = alloc_args.map {|arg| visit(arg)}
 	  @port << "#{name} = "
 	  display_template AMarshal.template_call(receiver, alloc_method, args,
-	    alloc_receiver.private_methods.include?(alloc_method.to_s))
+	    alloc_receiver.private_methods(true).include?(alloc_method.to_s))
 	},
 	lambda {|init| inits << init})
 
@@ -329,7 +329,7 @@ class Object
     am_allocinit(
       lambda {|alloc_receiver, alloc_method, *alloc_args|
 	t = AMarshal.template_call(alloc_receiver, alloc_method, alloc_args,
-	      alloc_receiver.private_methods.include?(alloc_method.to_s))
+	      alloc_receiver.private_methods(true).include?(alloc_method.to_s))
 	template_proc.call(t)
       },
       init_proc)
