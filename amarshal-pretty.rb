@@ -18,89 +18,7 @@ module AMarshal
   end
 
   class Template
-    def initialize(format, objs)
-      @format = format
-      @objs = objs
-      @names = []
-
-      case @format
-      when '@=@'
-	@conv = lambda {
-	  RubyExpression.binary_exp(
-	    convert_to_ruby_expression(@objs[0]), '=',
-	    convert_to_ruby_expression(@objs[1]))
-	}
-      when '@[@]=@'
-	@conv = lambda {
-	  RubyExpression.binary_exp(
-	    RubyExpression.method_call(
-	      convert_to_ruby_expression(@objs[0]), '[]',
-	      convert_to_ruby_expression(@objs[1])),
-	    '=',
-	    convert_to_ruby_expression(@objs[2]))
-	}
-      when '@<<@'
-	@conv = lambda {
-	  RubyExpression.binary_exp(
-	    convert_to_ruby_expression(@objs[0]),
-	    '<<',
-	    convert_to_ruby_expression(@objs[1]))
-	}
-      when '@.@=@'
-	@names << @objs.slice!(1)
-	@conv = lambda {
-	  RubyExpression.binary_exp(
-	    RubyExpression.method_call(convert_to_ruby_expression(@objs[0]), @names[0]), '=',
-	    convert_to_ruby_expression(@objs[1]))
-	}
-      when '@.@'
-	@names << @objs.slice!(1)
-	@conv = lambda {
-	  RubyExpression.method_call(convert_to_ruby_expression(@objs[0]), @names[0])
-	}
-      when '@.@(@)'
-	@names << @objs.slice!(1)
-	@conv = lambda {
-	  RubyExpression.method_call(
-	    convert_to_ruby_expression(@objs[0]), @names[0],
-	    @objs[1..-1].map {|o| convert_to_ruby_expression(o)})
-	}
-      when '[@]'
-	@conv = lambda {
-	  RubyExpression.array(@objs.map {|o| convert_to_ruby_expression(o)})
-	}
-      when '@[@]'
-	@conv = lambda {
-	  RubyExpression.method_call(
-	    convert_to_ruby_expression(@objs[0]), '[]',
-	    convert_to_ruby_expression(@objs[1]))
-	}
-      when '{@}'
-	@conv = lambda {
-	  RubyExpression.hash(@objs.map {|o| convert_to_ruby_expression(o)})
-	}
-      when '@...@'
-	@conv = lambda {
-	  RubyExpression.binary_exp(
-	    convert_to_ruby_expression(@objs[0]), '...',
-	    convert_to_ruby_expression(@objs[1]))
-	}
-      when '@..@'
-	@conv = lambda {
-	  RubyExpression.binary_exp(
-	    convert_to_ruby_expression(@objs[0]), '..',
-	    convert_to_ruby_expression(@objs[1]))
-	}
-      else
-        raise "unknown format: #{@format.inspect}"
-      end
-    end
-
-    def map_object!(&block)
-      @objs.map!(&block)
-    end
-
-    def convert_to_ruby_expression(obj)
+    def Template.convert_to_ruby_expression(obj)
       if Template === obj
         obj.to_ruby_expression
       else
@@ -108,8 +26,82 @@ module AMarshal
       end
     end
 
+    def Template.assign(lhs, rhs)
+      Template.new([lhs, rhs]) {|objs|
+	RubyExpression.binary_exp(
+	  convert_to_ruby_expression(objs[0]), '=',
+	  convert_to_ruby_expression(objs[1]))
+      }
+    end
+
+    def Template.index_assign(obj, index, rhs)
+      Template.new([obj, index, rhs]) {|objs|
+	RubyExpression.binary_exp(
+	  RubyExpression.method_call(
+	    convert_to_ruby_expression(objs[0]), '[]',
+	    convert_to_ruby_expression(objs[1])),
+	  '=',
+	  convert_to_ruby_expression(objs[2]))
+      }
+    end
+
+    def Template.lshift(obj, arg)
+      Template.new([obj, arg]) {|objs|
+	RubyExpression.binary_exp(
+	  convert_to_ruby_expression(objs[0]),
+	  '<<',
+	  convert_to_ruby_expression(objs[1]))
+      }
+    end
+
+    def Template.assign_method(obj, methodname, arg)
+      Template.new([obj, arg]) {|objs|
+	RubyExpression.binary_exp(
+	  RubyExpression.method_call(convert_to_ruby_expression(objs[0]), methodname), '=',
+	  convert_to_ruby_expression(objs[1]))
+      }
+    end
+
+    def Template.method_call(obj, methodname, args=[])
+      Template.new([obj, *args]) {|objs|
+	RubyExpression.method_call(
+	  convert_to_ruby_expression(objs[0]), methodname,
+	  objs[1..-1].map {|o| convert_to_ruby_expression(o)})
+      }
+    end
+
+    def Template.array(objs)
+      Template.new(objs) {|objs|
+	RubyExpression.array(objs.map {|o| convert_to_ruby_expression(o)})
+      }
+    end
+
+    def Template.hash(objs)
+      Template.new(objs) {|objs|
+	RubyExpression.hash(objs.map {|o| convert_to_ruby_expression(o)})
+      }
+    end
+
+    def Template.range(first, last, exclude_end=false)
+      Template.new([first, last]) {|objs|
+	RubyExpression.binary_exp(
+	  convert_to_ruby_expression(objs[0]),
+	  exclude_end ? '...' : '..',
+	  convert_to_ruby_expression(objs[1]))
+      }
+    end
+
+    def initialize(objs, &block)
+      @objs = objs
+      @conv = block
+    end
+
+    def map_object!(&block)
+      @objs.map!(&block)
+    end
+
     def to_ruby_expression
-      @conv.call
+      @conv.call(@objs)
     end
   end
 
@@ -205,7 +197,7 @@ module AMarshal
 	if @visiting[id] == true
 	  if 1 < @count[id]
 	    name = gensym
-	    display_template Template.new('@=@', [name, t])
+	    display_template Template.assign(name, t)
 	    t = @names[id] = name
 	  else
 	    @names[id] = :should_not_refer
@@ -234,7 +226,7 @@ module AMarshal
 	  
 	if 1 < @count[id] || !inits.empty?
 	  @names[id] = name = gensym
-	  display_template Template.new('@=@', [name, template])
+	  display_template Template.assign(name, template)
 	  inits.each {|init_method, *init_args|
 	    display_template AMarshal.template_call(name, init_method, init_args.map {|arg| visit(arg)})
 	  }
@@ -287,21 +279,21 @@ module AMarshal
   def AMarshal.template_call(receiver, method, args)
     case method
     when :[]=
-      AMarshal::Template.new('@[@]=@', [receiver, *args])
+      AMarshal::Template.index_assign(receiver, *args)
     when :<<
-      AMarshal::Template.new('@<<@', [receiver, *args])
+      AMarshal::Template.lshift(receiver, *args)
     else
       method = method.to_s
       if /\A([A-Za-z_][0-9A-Za-z_]*)=\z/ =~ method
 	# receiver.m = arg0
-	AMarshal::Template.new('@.@=@', [receiver, $1, *args])
+	AMarshal::Template.assign_method(receiver, $1, *args)
       else
 	if args.empty?
 	  # receiver.m
-	  AMarshal::Template.new('@.@', [receiver, method])
+	  AMarshal::Template.method_call(receiver, method)
 	else
 	  # receiver.m(arg0, ...)
-	  AMarshal::Template.new('@.@(@)', [receiver, method, *args])
+	  AMarshal::Template.method_call(receiver, method, args)
 	end
       end
     end
@@ -332,14 +324,10 @@ class Array
       if self.empty?
         '[]'
       else
-	AMarshal::Template.new('[@]', Array.new(self))
+	AMarshal::Template.array(Array.new(self))
       end
     else
-      if self.empty?
-	AMarshal::Template.create('@[@]', [self.class.name, ''])
-      else
-	AMarshal::Template.create('@[@]', [self.class.name, *self])
-      end
+      AMarshal::Template.method_call(self.class, '[]', self)
     end
   end
 end
@@ -359,20 +347,20 @@ class Hash
 	  objs << k
 	  objs << v
 	}
-	AMarshal::Template.new('{@}', objs)
+	AMarshal::Template.hash(objs)
       end
     else
       if self.empty?
 	# C[]
-	AMarshal::Template.new('@[@]', [self.class.name, ''])
+	AMarshal::Template.method_call(self.class, '[]')
       else
 	# C[k1, v1, ...]
-	objs = [self.class.name]
+	objs = []
 	self.map {|k, v|
 	  objs << k
 	  objs << v
 	}
-	AMarshal::Template.new('@[@]', objs)
+	AMarshal::Template.method_call(self.class, '[]', objs)
       end
     end
   end
@@ -383,17 +371,17 @@ class Range
     return nil unless self.instance_variables.empty?
     if self.class == Range
       if self.exclude_end?
-	AMarshal::Template.new('@...@', [first, last])
+	AMarshal::Template.range(first, last, true)
       else
-	AMarshal::Template.new('@..@', [first, last])
+	AMarshal::Template.range(first, last)
       end
     else
       if self.exclude_end?
 	# C.new(a, b)
-	AMarshal::Template.new('@.@(@)', [self.class.name, 'new', first, last])
+	AMarshal::Template.method_call(self.class, 'new', [first, last, true])
       else
 	# C.new(a, b, true)
-	AMarshal::Template.new('@.@(@)', [self.class.name, 'new', first, last, 'true'])
+	AMarshal::Template.method_call(self.class, 'new', [first, last])
       end
     end
   end
