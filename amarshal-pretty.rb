@@ -379,6 +379,10 @@ class Range
 	AMarshal::Template.range(first, last)
       end
     else
+      if self.class.singleton_class.method_defining_module(:new) != Class ||
+         self.class.method_defining_module(:initialize) != Range
+	return nil
+      end
       if self.exclude_end?
 	# C.new(a, b)
 	AMarshal::Template.method_call(self.class, 'new', [first, last, true])
