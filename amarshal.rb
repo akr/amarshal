@@ -117,6 +117,13 @@ class MarshalStringWriter
     byte ?C
     byte ?:
     bytes_str c.name
+    yield
+  end
+
+  def regexp(str, opts)
+    byte ?/
+    bytes_str str
+    byte opts
   end
 end
 
@@ -229,10 +236,7 @@ class Regexp
       return Regexp.new(str, opts)
     else
       m = MarshalStringWriter.new
-      m.uclass self
-      m.byte ?/
-      m.bytes_str str
-      m.byte opts
+      m.uclass(self) {m.regexp str, opts}
       return Marshal.load(m.out)
     end
   end
