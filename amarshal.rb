@@ -45,8 +45,8 @@ module AMarshal
       end
     end
 
-    if obj.respond_to? :am_allocate_initialize
-      (alloc_receiver, alloc_method, *alloc_args), *inits = obj.am_allocate_initialize
+    if obj.respond_to? :am_allocinit
+      (alloc_receiver, alloc_method, *alloc_args), *inits = obj.am_allocinit
       port << "#{var} = "
       dump_call(port, dump_sub(alloc_receiver, port, vars), alloc_method,
 		alloc_args.map {|arg| dump_sub(arg, port, vars)})
@@ -72,7 +72,7 @@ end
 
 [IO, Binding, Continuation, Data, Dir, File::Stat, MatchData, Method, Proc, Thread, ThreadGroup].each {|c|
   c.class_eval {
-    def am_allocate_initialize
+    def am_allocinit
       raise TypeError.new("can't dump #{self.class}")
     end
   }
@@ -87,7 +87,7 @@ class Object
     return [am_literal, *am_instance_variable_inits]
   end
 
-  def am_allocate_initialize
+  def am_allocinit
     return [[self.class, :allocate], *am_instance_variable_inits]
   end
 
@@ -105,7 +105,7 @@ class Object
 end
 
 class Array
-  def am_allocate_initialize
+  def am_allocinit
     alloc, *inits = super
     self.each_with_index {|v, i| inits << [:[]=, i, v]}
     return [alloc, *inits]
@@ -113,10 +113,16 @@ class Array
 end
 
 class Exception
-  def am_allocate_initialize
+  def am_allocinit
     alloc, *inits = super
+    inits << [:am_initialize, message]
     inits << [:set_backtrace, backtrace] if backtrace
-    return [[self.class, :new, message], *inits]
+    return [alloc, *inits]
+  end
+
+  alias am_orig_initialize initialize
+  def am_initialize(mesg)
+    am_orig_initialize(mesg)
   end
 end
 
@@ -125,7 +131,7 @@ class FalseClass
 end
 
 class Hash
-  def am_allocate_initialize
+  def am_allocinit
     alloc, *inits = super
     self.each {|k, v| inits << [:[]=, k, v]}
     return [alloc, *inits]
@@ -149,6 +155,7 @@ class Fixnum
 end
 
 class Float
+  # xxx NaN, Inf?
   def am_literal
     str = '%.16g' % self
     str << ".0" if /\A[-+][0-9]*\z/ =~ str
@@ -157,14 +164,15 @@ class Float
 end
 
 class Range
-  def am_allocate_initialize
+  def am_allocinit
     alloc, *inits = super
     inits << [:am_initialize, first, last, exclude_end?]
     return [alloc, *inits]
   end
 
+  alias am_orig_initialize initialize
   def am_initialize(first, last, exclude_end)
-    initialize(first, last, exclude_end)
+    am_orig_initialize(first, last, exclude_end)
   end
 end
 
@@ -177,7 +185,7 @@ class String
 end
 
 class Struct
-  def am_allocate_initialize
+  def am_allocinit
     alloc, *inits = super
     self.each_pair {|m, v| inits << [:[]=, m, v]}
     return [alloc, *inits]
@@ -190,19 +198,23 @@ class Symbol
     ":" + str
   end
 
-  def am_allocate_initialize
+  def am_allocinit
     alloc, *inits = super
     return [[to_s, :intern], *inits]
   end
 end
 
 class Time
-  def am_allocate_initialize
+  def am_allocinit
     alloc, *inits = super
     t = self.dup.utc
-    alloc = [self.class, :utc, t.year, t.mon, t.day, t.hour, t.min, t.sec, t.usec]
+    alloc = [self.class, :am_utc, t.year, t.mon, t.day, t.hour, t.min, t.sec, t.usec]
     inits << [:localtime] unless utc?
     return [alloc, *inits]
+  end
+
+  class << Time
+    alias am_utc utc
   end
 end
 
