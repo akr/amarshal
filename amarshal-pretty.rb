@@ -135,7 +135,7 @@ module AMarshal
 
       @visiting = {}
       @names = {}
-      @gc_guard = []
+      @gc_guard = {}
       template = visit(@obj)
       display_template template
       @gc_guard = nil
@@ -161,8 +161,8 @@ module AMarshal
     end
 
     def visit(obj)
-      @gc_guard << obj
       id = obj.__id__
+      @gc_guard[id] = obj
       if @names.include? id
 	#p [:visit_named, obj, @names[id]]
 	if @names[id] == :should_not_refer
