@@ -60,7 +60,7 @@ module AMarshal
 
   def AMarshal.dump_call(port, receiver, method, args, private=false)
     if private
-      port << "#{receiver}.__send__(:#{method}#{args.map {|arg| ', ' + arg.to_s}.join})\n"
+      port << "#{receiver}.__send__(:#{method}#{args.map {|arg| ", #{arg}"}})\n"
     else
       case method
       when :[]=
