@@ -326,7 +326,7 @@ class Float
 
   def am_dump(am)
     name = yield
-    am.print "#{name} = #{self}\n"
+    am.print "#{name} = #{'%.16g' % self}\n"
     am.put_instance_variables(self, name)
   end
 end
