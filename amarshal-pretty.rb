@@ -27,19 +27,19 @@ module AMarshal
     @curr_prec = 1
 
     def Template.pretty_printer(f, key)
-      lambda {|out, indent, children, objects|
-	#p [f, children, objects]
-        i = 0
-	out.group(indent) {
-	  f.scan(/[@_$]|[^@_$]+/) {|s|
-	    case s
-	    when '@'
-	      obj = children[i]
-	      if Integer === obj
-		obj = objects[obj]
-	      end
+      code = "lambda {|out, indent, children, objects| out.group(indent) {\n"
+      i = 0
+      f.scan(/[@_$]|[^@_$]+/) {|s|
+	case s
+	when '@'
+	  prec = PrecRight[key][i]
+	  if prec
+	    code << <<-"End"
+	      obj = children[#{i}]
+	      obj = objects[obj] if Integer === obj
 	      if Template === obj
-		if PrecRight[key][i] <= obj.prec
+		# #{key.dump} #{i}
+		if #{prec} <= obj.prec
 		  obj.pretty_display out
 		else
 		  out.text '('
@@ -49,17 +49,22 @@ module AMarshal
 	      else
 		out.text obj.to_s
 	      end
-	      i += 1
-	    when '_'
-	      out.text ' '
-	    when '$'
-	      out.breakable
-	    else
-	      out.text s
-	    end
-	  }
-	}
+	    End
+	  else
+	    code << "out.text children[#{i}].to_s\n"
+	  end
+	  i += 1
+	when '_'
+	  code << "out.text ' '\n"
+	when '$'
+	  code << "out.breakable\n"
+	else
+	  code << "out.text #{s.dump}\n"
+	end
       }
+      code << "}}"
+      #puts code
+      eval code
     end
 
     def Template.next_prec(prec, formats, name=nil)
