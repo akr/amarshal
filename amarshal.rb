@@ -226,7 +226,7 @@ end
 class Module
   def am_name
     n = name
-    raise ArgumentError.new("can't dump anonymous class #{self.inspect}") if n.empty?
+    raise ArgumentError.new("can't dump anonymous class #{self.inspect}") if /\A#/ =~ n
     n
   end
 end
