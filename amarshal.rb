@@ -45,7 +45,7 @@ module AMarshal
     when :[]=
       port << "#{receiver}[#{args.first}] = #{args.last}\n"
     else
-      port << "#{receiver}.#{method}(#{args.join ","})\n"
+      port << "#{receiver}.#{method}(#{args.map {|arg| arg.to_s}.join ","})\n"
     end
   end
 end
