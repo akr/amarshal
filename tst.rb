@@ -65,19 +65,28 @@ class AMarshalTest < RUNIT::TestCase
   end
 
   def test_bignum
-    marshal_equal(1000000000000000)
+    marshal_equal(-0x4000_0000_0000_0001)
+    marshal_equal(-0x4000_0001)
+    marshal_equal(0x4000_0000)
+    marshal_equal(0x4000_0000_0000_0000)
   end
 
   def test_fixnum
+    marshal_equal(-0x4000_0000)
+    marshal_equal(-1)
+    marshal_equal(0)
     marshal_equal(1)
+    marshal_equal(0x3fff_ffff)
   end
 
   def test_float
+    marshal_equal(-1.0)
+    marshal_equal(0.0)
     marshal_equal(1.0)
     marshal_equal(1.0/0.0)
     marshal_equal(-1.0/0.0)
-    assert(marshaltest(0.0/0.0).nan?)
-    assert_equal(1.0/-0.0, 1.0/marshaltest(-0.0))
+    marshal_equal(0.0/0.0) {|o| o.nan?}
+    marshal_equal(-0.0) {|o| 1.0/o}
   end
 
   class MyRange < Range; def initialize(v, *args) super *args; @v = v; end end
