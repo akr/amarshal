@@ -26,7 +26,7 @@ module AMarshal
     PrettyPrinter = {}
     @curr_prec = 1
 
-    def Template.pretty_printer(f)
+    def Template.pretty_printer(f, key)
       lambda {|out, children, objects|
 	#p [f, children, objects]
         i = 0
@@ -38,7 +38,13 @@ module AMarshal
 	      obj = objects[obj]
 	    end
 	    if Template === obj
-	      obj.pretty_display out
+	      if PrecRight[key][i] <= obj.prec
+		obj.pretty_display out
+	      else
+		out.text '('
+		obj.pretty_display out
+		out.text ')'
+	      end
 	    else
 	      out.text obj.to_s
 	    end
@@ -88,7 +94,7 @@ module AMarshal
 	PrecLeft[f2] = base_prec
 	PrecRight[f2] = prec
 	Arity[f2] = f2.count('@')
-	PrettyPrinter[f2] = pretty_printer(f)
+	PrettyPrinter[f2] = pretty_printer(f, f2)
       }
 
       if name
@@ -182,21 +188,21 @@ module AMarshal
       if @children.length != Arity[@format]
 	raise "expected #{Arity[@format]} arguments for #{@format.inspect} but #{@children.length}"
       end
-      arg_precs = PrecRight[@format]
       i = 0
       @format.gsub(/@/) {
-	arg = @objects[@children[i]]
-	prec = arg_precs[i]
+	obj = @children[i]
+	obj = @objects[obj] if Integer === obj
+	prec = PrecRight[@format][i]
 	i += 1
-	if Template === arg
-	  #p [prec, arg, arg.prec]
-	  if prec <= arg.prec
-	    arg.to_s
+	if Template === obj
+	  #p [prec, obj, obj.prec]
+	  if prec <= obj.prec
+	    obj.to_s
 	  else
-	    '(' + arg.to_s + ')'
+	    '(' + obj.to_s + ')'
 	  end
 	else
-	  arg.to_s
+	  obj.to_s
 	end
       }
     end
