@@ -8,11 +8,11 @@ class RubyExpression
     @curr_prec += 1
   end
 
-  def enclose_display(obj, c, out)
+  def enclose_display(obj, c, out, indent=1)
     if RubyExpression === obj
       c = c::Prec if Class === c
       obj = Parenthesis.new(obj) if obj.class::Prec < c
-      out.group(1) {
+      out.group(indent) {
 	obj.pretty_format out
       }
     else
@@ -103,7 +103,7 @@ class RubyExpression
 	  out.text ','
 	  out.breakable
 	end
-	enclose_display(arg, Arguments, out)
+	enclose_display(arg, Arguments, out, 0)
       }
     end
   end
@@ -211,17 +211,10 @@ class RubyExpression
   end
 end
 
-=begin
-e = RubyExpression.unary_exp('not', 'z')
-e = RubyExpression.unary_exp('not', e)
-e = RubyExpression.unary_exp('not', e)
-e = RubyExpression.unary_exp('not', e)
-e = RubyExpression.unary_exp('not', e)
-e = RubyExpression.unary_exp('not', e)
-e = RubyExpression.binary_exp(e, '=>', e)
-e = RubyExpression::Arguments.new([e,e,e,e,e])
-e = RubyExpression::Parenthesis.new(e, '{', '}')
-e = RubyExpression.binary_exp(e, '+', e)
-e.pretty_display STDOUT
-puts
-=end
+if $0 == __FILE__
+  require 'pp'
+  e = RubyExpression.array(['1', 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx', '2', 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'])
+  pp e
+  e.pretty_display STDOUT
+  puts
+end
