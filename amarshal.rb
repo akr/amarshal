@@ -19,12 +19,15 @@ module AMarshal
 
     if obj.respond_to? :am_name
       begin
-	name, *inits = obj.am_name_instance_variables
-	vars[id] = name
-	inits.each {|init_method, *init_args|
-	  dump_call(port, name, init_method,
-	            init_args.map {|arg| dump_sub(arg, port, vars)})
-	}
+	name = nil
+	obj.am_name_instance_variables(
+	  lambda {|name|
+	    vars[id] = name
+	  },
+	  lambda {|init_method, *init_args|
+	    dump_call(port, name, init_method,
+		      init_args.map {|arg| dump_sub(arg, port, vars)})
+	  })
 	return name
       rescue Next
       end
@@ -34,26 +37,30 @@ module AMarshal
 
     if obj.respond_to?(:am_literal) && obj.class.instance_methods.include?("am_literal")
       begin
-	lit, *inits = obj.am_literal_instance_variables
-	port << "#{var} = #{lit}\n"
-	inits.each {|init_method, *init_args|
-	  dump_call(port, var, init_method,
-	            init_args.map {|arg| dump_sub(arg, port, vars)})
-	}
+	obj.am_literal_instance_variables(
+	  lambda {|lit|
+	    port << "#{var} = #{lit}\n"
+	  },
+	  lambda {|init_method, *init_args|
+	    dump_call(port, var, init_method,
+		      init_args.map {|arg| dump_sub(arg, port, vars)})
+	  })
 	return var
       rescue Next
       end
     end
 
     if obj.respond_to? :am_allocinit
-      (alloc_receiver, alloc_method, *alloc_args), *inits = obj.am_allocinit
-      port << "#{var} = "
-      dump_call(port, dump_sub(alloc_receiver, port, vars), alloc_method,
-		alloc_args.map {|arg| dump_sub(arg, port, vars)})
-      inits.each {|init_method, *init_args|
-	dump_call(port, var, init_method,
-	          init_args.map {|arg| dump_sub(arg, port, vars)})
-      }
+      obj.am_allocinit(
+        lambda {|alloc_receiver, alloc_method, *alloc_args|
+	  port << "#{var} = "
+	  dump_call(port, dump_sub(alloc_receiver, port, vars), alloc_method,
+		    alloc_args.map {|arg| dump_sub(arg, port, vars)})
+	},
+	lambda {|init_method, *init_args|
+	  dump_call(port, var, init_method,
+		    init_args.map {|arg| dump_sub(arg, port, vars)})
+	})
       return var
     end
 
@@ -72,31 +79,32 @@ end
 
 [IO, Binding, Continuation, Data, Dir, File::Stat, MatchData, Method, Proc, Thread, ThreadGroup].each {|c|
   c.class_eval {
-    def am_allocinit
+    def am_allocinit(alloc_proc, init_proc)
       raise TypeError.new("can't dump #{self.class}")
     end
   }
 }
 
 class Object
-  def am_name_instance_variables
-    return [am_name, *am_instance_variable_inits]
+  def am_name_instance_variables(name_proc, init_proc)
+    name_proc.call(am_name)
+    am_instance_variable_inits init_proc
   end
 
-  def am_literal_instance_variables
-    return [am_literal, *am_instance_variable_inits]
+  def am_literal_instance_variables(lit_proc, init_proc)
+    lit_proc.call(am_literal)
+    am_instance_variable_inits init_proc
   end
 
-  def am_allocinit
-    return [[self.class, :allocate], *am_instance_variable_inits]
+  def am_allocinit(alloc_proc, init_proc)
+    alloc_proc.call(self.class, :allocate) if alloc_proc
+    am_instance_variable_inits init_proc
   end
 
-  def am_instance_variable_inits
-    inits = []
+  def am_instance_variable_inits(init_proc)
     self.instance_variables.each {|iv|
-      inits << [:instance_variable_set, iv, eval(iv)]
+      init_proc.call(:instance_variable_set, iv, eval(iv))
     }
-    return inits
   end
 
   def instance_variable_set(var, val)
@@ -105,19 +113,17 @@ class Object
 end
 
 class Array
-  def am_allocinit
-    alloc, *inits = super
-    self.each_with_index {|v, i| inits << [:[]=, i, v]}
-    return [alloc, *inits]
+  def am_allocinit(alloc_proc, init_proc)
+    super
+    self.each_with_index {|v, i| init_proc.call(:[]=, i, v)}
   end
 end
 
 class Exception
-  def am_allocinit
-    alloc, *inits = super
-    inits << [:am_initialize, message]
-    inits << [:set_backtrace, backtrace] if backtrace
-    return [alloc, *inits]
+  def am_allocinit(alloc_proc, init_proc)
+    super
+    init_proc.call(:am_initialize, message)
+    init_proc.call(:set_backtrace, backtrace) if backtrace
   end
 
   alias am_orig_initialize initialize
@@ -131,10 +137,9 @@ class FalseClass
 end
 
 class Hash
-  def am_allocinit
-    alloc, *inits = super
-    self.each {|k, v| inits << [:[]=, k, v]}
-    return [alloc, *inits]
+  def am_allocinit(alloc_proc, init_proc)
+    super
+    self.each {|k, v| init_proc.call(:[]=, k, v)}
   end
 end
 
@@ -155,7 +160,7 @@ class Fixnum
 end
 
 class Float
-  # Float.am_nan, Float.am_pos_inf and Float.am_neg_inf are not literal.
+  # Float.am_nan, Float.am_pos_inf and Float.am_neg_inf are not a literal.
   def am_literal
     if self.nan?
       "Float.am_nan"
@@ -167,7 +172,7 @@ class Float
       end
     else
       str = '%.16g' % self
-      str << ".0" if /\A[-+][0-9]*\z/ =~ str
+      str << ".0" if /\A-?[0-9]+\z/ =~ str
       str
     end
   end
@@ -178,10 +183,9 @@ class Float
 end
 
 class Range
-  def am_allocinit
-    alloc, *inits = super
-    inits << [:am_initialize, first, last, exclude_end?]
-    return [alloc, *inits]
+  def am_allocinit(alloc_proc, init_proc)
+    super
+    init_proc.call(:am_initialize, first, last, exclude_end?)
   end
 
   alias am_orig_initialize initialize
@@ -193,10 +197,9 @@ end
 class Regexp
   alias am_literal inspect
 
-  def am_allocinit
-    alloc, *inits = super
-    inits << [:am_initialize, self.source, self.options]
-    return [alloc, *inits]
+  def am_allocinit(alloc_proc, init_proc)
+    super
+    init_proc.call(:am_initialize, self.source, self.options)
   end
 
   alias am_orig_initialize initialize
@@ -208,10 +211,9 @@ end
 class String
   alias am_literal dump
 
-  def am_allocinit
-    alloc, *inits = super
-    inits << [:am_initialize, String.new(self)]
-    return [alloc, *inits]
+  def am_allocinit(alloc_proc, init_proc)
+    super
+    init_proc.call(:am_initialize, String.new(self))
   end
 
   alias am_orig_initialize initialize
@@ -221,10 +223,9 @@ class String
 end
 
 class Struct
-  def am_allocinit
-    alloc, *inits = super
-    self.each_pair {|m, v| inits << [:[]=, m, v]}
-    return [alloc, *inits]
+  def am_allocinit(alloc_proc, init_proc)
+    super
+    self.each_pair {|m, v| init_proc.call(:[]=, m, v)}
   end
 end
 
@@ -234,19 +235,18 @@ class Symbol
     ":" + str
   end
 
-  def am_allocinit
-    alloc, *inits = super
-    return [[to_s, :intern], *inits]
+  def am_allocinit(alloc_proc, init_proc)
+    alloc_proc.call(to_s, :intern)
+    super(nil, init_proc)
   end
 end
 
 class Time
-  def am_allocinit
-    alloc, *inits = super
+  def am_allocinit(alloc_proc, init_proc)
     t = self.dup.utc
-    alloc = [self.class, :am_utc, t.year, t.mon, t.day, t.hour, t.min, t.sec, t.usec]
-    inits << [:localtime] unless utc?
-    return [alloc, *inits]
+    alloc_proc.call(self.class, :am_utc, t.year, t.mon, t.day, t.hour, t.min, t.sec, t.usec)
+    super(nil, init_proc)
+    init_proc.call(:localtime) unless utc?
   end
 
   class << Time
