@@ -9,11 +9,11 @@ module AMarshal
 
   def AMarshal.dump(obj, port='')
     vars = {}
-    var = dump_sub obj, port, vars
+    var = dump_rec obj, port, vars
     port << "#{var}\n"
   end
 
-  def AMarshal.dump_sub(obj, port, vars)
+  def AMarshal.dump_rec(obj, port, vars)
     id = obj.__id__
     return vars[id] if vars.include? id
 
@@ -22,9 +22,9 @@ module AMarshal
       lambda {|name| vars[id] = name},
       lambda {|init_method, *init_args|
 	dump_call(port, name, init_method,
-		  init_args.map {|arg| dump_sub(arg, port, vars)})
+		  init_args.map {|arg| dump_rec(arg, port, vars)})
       }) and
-    return name
+      return name
 
     vars[id] = var = "v#{vars.size}"
 
@@ -32,19 +32,20 @@ module AMarshal
       lambda {|lit| port << "#{var} = #{lit}\n"},
       lambda {|init_method, *init_args|
 	dump_call(port, var, init_method,
-		  init_args.map {|arg| dump_sub(arg, port, vars)})
+		  init_args.map {|arg| dump_rec(arg, port, vars)})
       }) and
-    return var
+      return var
 
     obj.am_allocinit(
       lambda {|alloc_receiver, alloc_method, *alloc_args|
+	receiver = dump_rec(alloc_receiver, port, vars)
+	args = alloc_args.map {|arg| dump_rec(arg, port, vars)}
 	port << "#{var} = "
-	dump_call(port, dump_sub(alloc_receiver, port, vars), alloc_method,
-		  alloc_args.map {|arg| dump_sub(arg, port, vars)})
+	dump_call(port, receiver, alloc_method, args)
       },
       lambda {|init_method, *init_args|
 	dump_call(port, var, init_method,
-		  init_args.map {|arg| dump_sub(arg, port, vars)})
+		  init_args.map {|arg| dump_rec(arg, port, vars)})
       })
     return var
   end
