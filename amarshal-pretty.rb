@@ -8,7 +8,6 @@ amarshal-pretty is highly experimental.
 == TODO
 * remove useless parenthesis by operator preferences.
 * use X.new/X[] if possible (avoid X.allocate)
-* indent using pretty-print
 =end
 
 require 'amarshal'
