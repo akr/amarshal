@@ -135,8 +135,10 @@ module AMarshal
 
       @visiting = {}
       @names = {}
+      @gc_guard = []
       template = visit(@obj)
       display_template template
+      @gc_guard = nil
     end
 
     def count(obj)
@@ -159,6 +161,7 @@ module AMarshal
     end
 
     def visit(obj)
+      @gc_guard << obj
       id = obj.__id__
       if @names.include? id
 	#p [:visit_named, obj, @names[id]]
