@@ -270,7 +270,7 @@ class Struct
     am.print "#{name} = #{am.put(self.class)}.new(#{args})\n"
     am.put_instance_variables(self, name)
     self.members.each {|m|
-      am.print "#{name}[:#{m}] = #{am.put(self[m])}\n"
+      am.print "#{name}[#{am.put(m.intern)}] = #{am.put(self[m])}\n"
     }
   end
 end
