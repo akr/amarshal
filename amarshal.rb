@@ -1,5 +1,5 @@
 module AMarshal
-  class Next < StandardError
+  class Next < Exception
   end
 
   def AMarshal.load(port)
@@ -46,11 +46,10 @@ module AMarshal
     end
 
     if obj.respond_to? :am_allocate_initialize
-      (alloc_receiver, alloc_method, *alloc_args), *inits =
-        obj.am_allocate_initialize
-	port << "#{var} = "
-        dump_call(port, dump_sub(alloc_receiver, port, vars), alloc_method,
-		  alloc_args.map {|arg| dump_sub(arg, port, vars)})
+      (alloc_receiver, alloc_method, *alloc_args), *inits = obj.am_allocate_initialize
+      port << "#{var} = "
+      dump_call(port, dump_sub(alloc_receiver, port, vars), alloc_method,
+		alloc_args.map {|arg| dump_sub(arg, port, vars)})
       inits.each {|init_method, *init_args|
 	dump_call(port, var, init_method,
 	          init_args.map {|arg| dump_sub(arg, port, vars)})
