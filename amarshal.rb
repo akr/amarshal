@@ -1,370 +1,216 @@
-require 'destructive'
+module AMarshal
+  class Next < StandardError
+  end
 
-class AMarshal
   def AMarshal.load(port)
     port = port.read if port.kind_of? IO
     eval port
   end
 
   def AMarshal.dump(obj, port='')
-    am = AMarshal.new(obj, port)
-    am.print "#{am.put1(obj)}\n"
-    port
+    vars = {}
+    var = dump_sub obj, port, vars
+    port << "#{var}\n"
   end
 
-  def put(obj)
-    traverse(obj) {|state|
-      put1(obj) if state == :tree
-    }
-    return @name[obj.__id__]
-  end
-
-  def put1(obj)
-    prefix = obj.class.name.gsub(/[^a-zA-Z]/, '').downcase
-    prefix = 'obj' if prefix == ''
-    @name[obj.__id__] = "#{prefix}#{obj.__id__}"
-    obj.am_dump(self) {|name| @name[obj.__id__] = name if name; @name[obj.__id__]}
-    return @name[obj.__id__]
-  end
-
-  def put_instance_variables(obj, name)
-    obj.instance_variables.each {|var|
-      value = obj.instance_eval var
-      self.print "#{name}.instance_eval {#{var} = #{self.put(value)}}\n"
-    }
-  end
-
-  def print(*args)
-    args.each {|v| @port << v}
-  end
-
-  def initialize(obj, port)
-    @curr = @number = 1
-    @hash = {obj.__id__ => -1}
-    @port = port
-    @name = {}
-  end
-
-  def status(obj)
+  def AMarshal.dump_sub(obj, port, vars)
     id = obj.__id__
-    unless @hash.include? id
-      return :tree
-    end
+    return vars[id] if vars.include? id
 
-    number = @hash[id]
-    if number < 0
-      return :backward
-    elsif @curr < number
-      return :forward
-    else
-      return :cross
-    end
-  end
-
-  def traverse(obj)
-    if (s = status(obj)) == :tree
-      id = obj.__id__
-      number = @number += 1
-      @hash[id] = -number
-      prev = @curr
-      @curr = number
-      yield s
-      @curr = prev
-      @hash[id] = number
-    else
-      yield s
-    end
-  end
-
-end
-
-class MarshalStringWriter
-  def initialize(out='', major=4, minor=6)
-    @out = out
-    byte major
-    byte minor
-  end
-
-  attr_reader :out
-
-  def byte(d)
-    @out << [d].pack('C')
-  end
-
-  def long(d)
-    raise TypeError.new("long too big to dump: #{d}") if d < -0x80000000 || 0x7fffffff < d
-    if d == 0
-      byte 0
-    elsif 0 < d && d < 123
-      byte d + 5
-    elsif -124 < d && d < 0
-      byte((d - 5) & 0xff)
-    else
-      buf = []
+    if obj.respond_to? :am_name
       begin
-        buf << (d & 0xff)
-	d >>= 8
-      end until d == 0 || d == -1
-      byte buf.length
-      buf.each {|b| byte b}
+	name, *inits = obj.am_name_instance_variables
+	vars[id] = name
+	inits.each {|init_method, *init_args|
+	  dump_call(port, name, init_method,
+	            init_args.map {|arg| dump_sub(arg, port, vars)})
+	}
+	return name
+      rescue Next
+      end
     end
+
+    vars[id] = var = "v#{vars.size}"
+
+    if obj.respond_to? :am_literal
+      begin
+	lit, *inits = obj.am_literal_instance_variables
+	port << "#{var} = #{lit}\n"
+	inits.each {|init_method, *init_args|
+	  dump_call(port, var, init_method,
+	            init_args.map {|arg| dump_sub(arg, port, vars)})
+	}
+	return var
+      rescue Next
+      end
+    end
+
+    if obj.respond_to? :am_allocate_initialize
+      (alloc_receiver, alloc_method, *alloc_args), *inits =
+        obj.am_allocate_initialize
+	port << "#{var} = "
+        dump_call(port, dump_sub(alloc_receiver, port, vars), alloc_method,
+		  alloc_args.map {|arg| dump_sub(arg, port, vars)})
+      inits.each {|init_method, *init_args|
+	dump_call(port, var, init_method,
+	          init_args.map {|arg| dump_sub(arg, port, vars)})
+      }
+      return var
+    end
+
+    raise ArgumentError.new("could not marshal #{obj.inspect}")
   end
 
-  def bytes(d)
-    long d.length
-    @out << d
-  end
-
-  def uclass(c)
-    byte ?C
-    byte ?:
-    bytes c.name
-    yield
-  end
-
-  def regexp(str, opts)
-    byte ?/
-    bytes str
-    byte opts
-  end
-end
-
-class Class
-  def basic_new
-    return Marshal.load(sprintf("\004\006o:%c%s\000", name.length + 5, name))
+  def AMarshal.dump_call(port, receiver, method, args)
+    case method
+    when :[]=
+      port << "#{receiver}[#{args.first}] = #{args.last}\n"
+    else
+      port << "#{receiver}.#{method}(#{args.join ","})\n"
+    end
   end
 end
 
 [IO, Binding, Continuation, Data, Dir, File::Stat, MatchData, Method, Proc, Thread, ThreadGroup].each {|c|
   c.class_eval {
-    def c.basic_new
-      raise TypeError.new("can't basic_new #{self.class}")
-    end
-
-    def am_dump(am);
+    def am_allocate_initialize
       raise TypeError.new("can't dump #{self.class}")
     end
   }
 }
 
 class Object
-  def am_dump(am)
-    name = yield
-    am.print "#{name} = #{am.put(self.class)}.basic_new\n"
-    am.put_instance_variables(self, name)
-  end
-end
-
-class Module
-  def Module.basic_new
-    return self.new
+  def am_name_instance_variables
+    return [am_name, *am_instance_variable_inits]
   end
 
-  def am_dump(am)
-    name = self.name
-    raise TypeError.new("can't dump anonymous class") if name == ''
-    yield name
+  def am_literal_instance_variables
+    return [am_literal, *am_instance_variable_inits]
+  end
+
+  def am_allocate_initialize
+    return [[self.class, :allocate], *am_instance_variable_inits]
+  end
+
+  def am_instance_variable_inits
+    inits = []
+    self.instance_variables.each {|iv|
+      inits << [:instance_variable_set, iv, eval(iv)]
+    }
+    return inits
+  end
+
+  def instance_variable_set(var, val)
+    eval "#{var} = val"
   end
 end
 
 class Array
-  def Array.basic_new
-    return []
-  end
-
-  def am_dump(am)
-    name = yield
-    am.print "#{name} = Array.new(#{length})\n"
-    am.put_instance_variables(self, name)
-    self.each_index {|i|
-      am.print "#{name}[#{i}] = #{am.put(self[i])}\n"
-    }
+  def am_allocate_initialize
+    alloc, *inits = super
+    self.each_with_index {|v, i| inits << [:[]=, i, v]}
+    return [alloc, *inits]
   end
 end
 
 class Exception
-  def Exception.basic_new
-    return self.new("")
-  end
-
-  def am_dump(am)
-    name = yield
-    am.print "#{name} = Exception.new(#{am.put(self.message)})\n"
-    am.put_instance_variables(self, name)
-    am.print "#{name}.set_backtrace #{am.put(self.backtrace)}\n"
-    # xxx: exception object is created at last.
-  end
-end
-
-class Hash
-  def Hash.basic_new
-    return {}
-  end
-
-  def am_dump(am)
-    name = yield
-    am.print "#{name} = Hash.new\n"
-    am.put_instance_variables(self, name)
-    if self.default != nil
-      am.print "#{name}.default = #{am.put(self.default)}\n"
-    end
-    self.each {|k, v|
-      am.print "#{name}[#{am.put(k)}] = #{am.put(v)}\n"
-    }
-  end
-end
-
-class Range
-  def Range.basic_new
-    return 0...1
-  end
-
-  def am_dump(am)
-    name = yield
-    am.print "#{name} = 0#{self.exclude_end? ? '...' : '..'}1\n"
-    am.put_instance_variables(self, name)
-    am.print "#{name}.begin = #{am.put(self.begin)}\n"
-    am.print "#{name}.end = #{am.put(self.end)}\n"
-  end
-end
-
-class Regexp
-  def Regexp.basic_new(str, opts=nil)
-    if self == Regexp
-      return Regexp.new(str, opts)
-    else
-      m = MarshalStringWriter.new
-      m.uclass(self) {m.regexp str, opts}
-      return Marshal.load(m.out)
-    end
-  end
-
-  def am_dump(am)
-    name = yield
-    am.print "#{name} = #{am.put(self.class)}.basic_new(#{self.source.dump}, #{self.options})\n"
-    am.put_instance_variables(self, name)
-  end
-end
-
-class String
-  def String.basic_new
-    return ""
-  end
-
-  def am_dump(am)
-    name = yield
-    am.print "#{name} = #{self.dump}\n"
-    am.put_instance_variables(self, name)
-  end
-end
-
-class Struct
-  def Struct.basic_new
-    return self.new
-  end
-
-  def am_dump(am)
-    name = yield
-    am.print "#{name} = #{am.put(self.class)}.new\n"
-    am.put_instance_variables(self, name)
-    self.members.each {|m|
-      am.print "#{name}[#{am.put(m.intern)}] = #{am.put(self[m])}\n"
-    }
-  end
-end
-
-class Symbol
-  def Symbol.basic_new
-    return "".intern
-  end
-
-  def am_dump(am)
-    str = self.to_s
-    if /\A[A-Za-z_][0-9A-Za-z_]*\z/ =~ str
-      yield ":#{str}"
-    else
-      name = yield
-      am.print "#{name} = #{str.dump}.intern\n"
-    end
-  end
-end
-
-class Time
-  def Time.basic_new
-    return Time.at(0).utc
-  end
-
-  def am_dump(am)
-    name = yield
-    if self.utc?
-      am.print "#{name} = Time.utc(#{year}, #{mon}, #{day}, #{hour}, #{min}, #{sec}, #{usec})\n"
-    else
-      t = self.dup.utc
-      am.print "#{name} = Time.utc(#{t.year}, #{t.mon}, #{t.day}, #{t.hour}, #{t.min}, #{t.sec}, #{t.usec}).localtime\n"
-    end
-  end
-end
-
-class Integer
-  def Integer.basic_new
-    # Since there is no suitable value for Bignum.basic_new,
-    # Bignum.basic_new (and Fixnum.basic_new) returns 0.
-    return 0
-  end
-end
-
-class Fixnum
-  def am_dump(am)
-    yield self.to_s
-  end
-end
-
-class Bignum
-  def am_dump(am)
-    name = yield
-    am.print "#{name} = #{self}\n"
-    am.put_instance_variables(self, name)
-  end
-end
-
-class Float
-  def Float.basic_new
-    return 0.0
-  end
-
-  def am_dump(am)
-    name = yield
-    am.print "#{name} = #{'%.16g' % self}\n"
-    am.put_instance_variables(self, name)
-  end
-end
-
-class TrueClass
-  def TrueClass.basic_new
-    return true
-  end
-
-  def am_dump(am)
-    yield "true"
+  def am_allocate_initialize
+    alloc, *inits = super
+    inits << [:set_backtrace, backtrace] if backtrace
+    return [[self.class, :new, message], *inits]
   end
 end
 
 class FalseClass
-  def FalseClass.basic_new
-    return false
-  end
+  alias am_name to_s
+end
 
-  def am_dump(am)
-    yield "false"
+class Hash
+  def am_allocate_initialize
+    alloc, *inits = super
+    self.each {|k, v| inits << [:[]=, k, v]}
+    return [alloc, *inits]
   end
 end
 
-class NilClass
-  def NilClass.basic_new
-    return nil
+class Module
+  def am_name
+    n = name
+    raise ArgumentError.new("can't dump anonymous class #{self.inspect}") if n.empty?
+    n
+  end
+end
+
+class Bignum
+  alias am_literal to_s
+end
+
+class Fixnum
+  alias am_name to_s
+end
+
+class Float
+  def am_literal
+    str = '%.16g' % self
+    str << ".0" if /\A[-+][0-9]*\z/ =~ str
+    str
+  end
+end
+
+class Range
+  def am_allocate_initialize
+    alloc, *inits = super
+    inits << [:am_initialize, first, last, exclude_end?]
+    return [alloc, *inits]
   end
 
-  def am_dump(am)
-    yield "nil"
+  def am_initialize(first, last, exclude_end)
+    initialize(first, last, exclude_end)
   end
+end
+
+class Regexp
+  alias am_literal inspect
+end
+
+class String
+  alias am_literal dump
+end
+
+class Struct
+  def am_allocate_initialize
+    alloc, *inits = super
+    self.each_pair {|m, v| inits << [:[]=, m, v]}
+    return [alloc, *inits]
+  end
+end
+
+class Symbol
+  def am_name
+    raise AMarshal::Next if /\A[A-Za-z_][0-9A-Za-z_]*\z/ !~ (str = to_s)
+    ":" + str
+  end
+
+  def am_allocate_initialize
+    alloc, *inits = super
+    return [[to_s, :intern], *inits]
+  end
+end
+
+class Time
+  def am_allocate_initialize
+    alloc, *inits = super
+    t = self.dup.utc
+    alloc = [self.class, :utc, t.year, t.mon, t.day, t.hour, t.min, t.sec, t.usec]
+    inits << [:localtime] unless utc?
+    return [alloc, *inits]
+  end
+end
+
+class TrueClass
+  alias am_name to_s
+end
+
+class NilClass
+  alias am_name inspect
 end
