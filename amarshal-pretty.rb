@@ -390,8 +390,8 @@ class Range
 	AMarshal::Template.range(first, last)
       end
     else
-      if self.class.singleton_class.method_defining_module(:new) != Class ||
-         self.class.method_defining_module(:initialize) != Range
+      if !self.class.method_defined_at?(:new, Class) ||
+         !self.method_defined_at?(:initialize, Range)
 	return nil
       end
       if self.exclude_end?

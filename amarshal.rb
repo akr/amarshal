@@ -86,34 +86,45 @@ end
   }
 }
 
-class Module
-  def method_defining_module_internal(meth)
-    meth = meth.to_s if Symbol === meth
-    if self.instance_methods.include?(meth) || self.private_instance_methods.include?(meth)
-      return self
-    end
-    self.ancestors.each {|m|
-      if m.instance_methods.include?(meth) || m.private_instance_methods.include?(meth)
-        return m
-      end
-    }
-    nil
-  end
-
-  MethodDefiningModuleCache = {}
-  def method_defining_module(meth)
-    key = [self, meth]
-    key.freeze
-    MethodDefiningModuleCache.fetch(key) {
-      MethodDefiningModuleCache[key] = method_defining_module_internal(meth)
-    }
-  end
-end
-
 class Object
-  def singleton_class
-    class << self
-      self
+  def method_defined_at?(name, mod)
+    name = name.to_s
+    mod = mod.to_s
+
+    meth = method(name)
+    s = meth.inspect
+
+    raise "method inspection doesn't begin with \"#<\"" if /\A#</ !~ s
+    s = $'
+    raise "method inspection has unexpected method class name" if /\A#{Regexp.quote meth.class.to_s}/ !~ s
+    s = $'
+    raise "method inspection doesn't separated properly" if /\A: / !~ s
+    s = $'
+
+    raise "method inspection doesn't end with ">"" unless s.chomp! '>'
+    raise "method inspection has unexpected method name" unless /([.#])#{Regexp.quote name}\z/ =~ s
+    s = $`
+    mark = $1
+
+    if mark == '.'
+      s2 = self.inspect
+      raise "singleton method inspection has unexpected receiver inspection" unless /\A#{Regexp.quote s2}/ =~ s
+      unless $'.empty?
+	s = $'
+	raise "defining class of singleton method inspection doesn't end with \")\"" unless s.chomp! ')'
+	raise "defining class of singleton method inspection doesn't begin with \"(\"" unless /\A\(/ =~ s
+	s = $'
+      end
+      s == mod
+    else
+      raise "method inspection has unexpected receiver class" unless /\A#{Regexp.quote self.class.to_s}/ =~ s
+      unless $'.empty?
+	s = $'
+	raise "defining class of method inspection doesn't end with \")\"" unless s.chomp! ')'
+	raise "defining class of method inspection doesn't begin with \"(\"" unless /\A\(/ =~ s
+	s = $'
+      end
+      s == mod
     end
   end
 
@@ -231,7 +242,7 @@ end
 class Range
   def am_allocinit(alloc_proc, init_proc)
     super
-    if self.class.method_defining_module(:initialize) == Range
+    if self.method_defined_at?(:initialize, Range)
       init = :initialize
     else
       init = :am_initialize
@@ -246,7 +257,7 @@ class Regexp
 
   def am_allocinit(alloc_proc, init_proc)
     super
-    if self.class.method_defining_module(:initialize) == Regexp
+    if self.method_defined_at?(:initialize, Regexp)
       init = :initialize
     else
       init = :am_initialize
@@ -261,7 +272,7 @@ class String
 
   def am_allocinit(alloc_proc, init_proc)
     super
-    if self.class.method_defining_module(:initialize) == String
+    if self.method_defined_at?(:initialize, String)
       init = :initialize
     else
       init = :am_initialize
@@ -292,8 +303,7 @@ end
 
 class Time
   def am_allocinit(alloc_proc, init_proc)
-    if self.class == Time ||
-       self.class.singleton_class.method_defining_module(:utc) == Time.singleton_class
+    if self.class.method_defined_at?(:utc, Time)
       utc_method = :utc
     else
       utc_method = :am_utc
