@@ -71,6 +71,53 @@ class AMarshal
       yield s
     end
   end
+
+end
+
+class MarshalStringWriter
+  def initialize(major=4, minor=6)
+    @buf = ''
+    byte major
+    byte minor
+  end
+
+  def result
+    return @buf
+  end
+
+  def byte(d)
+    @buf << [d].pack('C')
+  end
+
+  def long(d)
+    raise TypeError.new("long too big to dump: #{d}") if d < -0x80000000 || 0x7fffffff < d
+    if d == 0
+      byte 0
+    elsif 0 < d && d < 123
+      byte d + 5
+    elsif -124 < d && d < 0
+      byte((d - 5) & 0xff)
+    else
+      buf = []
+      begin
+        buf << (d & 0xff)
+	d >>= 8
+      end until d == 0 || d == -1
+      byte buf.length
+      buf.each {|b| byte b}
+    end
+  end
+
+  def bytes_str(d)
+    long d.length
+    @buf << d
+  end
+
+  def uclass(c)
+    byte ?C
+    byte ?:
+    bytes_str c.name
+  end
 end
 
 class Class
@@ -175,13 +222,22 @@ class Range
 end
 
 class Regexp
-  def Regexp.basic_new
-    return //
+  def Regexp.basic_new(str, opts=nil)
+    if self == Regexp
+      return Regexp.new(str, opts)
+    else
+      m = MarshalStringWriter.new
+      m.uclass self
+      m.byte ?/
+      m.bytes_str str
+      m.byte opts
+      return Marshal.load(m.result)
+    end
   end
 
   def am_dump(am)
     name = yield
-    am.print "#{name} = Regexp.new(#{self.source.dump}, #{self.options})\n"
+    am.print "#{name} = #{self.class}.basic_new(#{self.source.dump}, #{self.options})\n"
     am.put_instance_variables(self, name)
   end
 end
