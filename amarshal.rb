@@ -277,7 +277,7 @@ class Symbol
   end
 
   def am_dump(am)
-    yield ":#{self.to_s}"
+    yield "#{self.to_s.dump}.intern"
   end
 end
 
