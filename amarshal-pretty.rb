@@ -31,33 +31,33 @@ module AMarshal
 	#p [f, children, objects]
         i = 0
 	out.group(indent) {
-	f.scan(/[@_$]|[^@_$]+/) {|s|
-	  case s
-	  when '@'
-	    obj = children[i]
-	    if Integer === obj
-	      obj = objects[obj]
-	    end
-	    if Template === obj
-	      if PrecRight[key][i] <= obj.prec
-		obj.pretty_display out
-	      else
-		out.text '('
-		obj.pretty_display out
-		out.text ')'
+	  f.scan(/[@_$]|[^@_$]+/) {|s|
+	    case s
+	    when '@'
+	      obj = children[i]
+	      if Integer === obj
+		obj = objects[obj]
 	      end
+	      if Template === obj
+		if PrecRight[key][i] <= obj.prec
+		  obj.pretty_display out
+		else
+		  out.text '('
+		  obj.pretty_display out
+		  out.text ')'
+		end
+	      else
+		out.text obj.to_s
+	      end
+	      i += 1
+	    when '_'
+	      out.text ' '
+	    when '$'
+	      out.breakable
 	    else
-	      out.text obj.to_s
+	      out.text s
 	    end
-	    i += 1
-	  when '_'
-	    out.text ' '
-	  when '$'
-	    out.breakable
-	  else
-	    out.text s
-	  end
-	}
+	  }
 	}
       }
     end
