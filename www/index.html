@@ -1,0 +1,75 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html lang="en">
+<head>
+<title>AMarshal - marshal a Ruby object as Ruby code</title>
+</head>
+<body>
+
+<!-- <img src="amarshal.png" alt="amarshal title image"> -->
+
+<h1>amarshal - marshal a Ruby object as Ruby code</h1>
+<p>amarshal is a library for marshaling a a Ruby object as Ruby code.
+</p>
+
+<h2>Usage</h2>
+<p>
+AMarshal is similar to Marshal.
+</p>
+<pre>
+% ruby -ramarshal -e 'AMarshal.dump([1,2,3], STDOUT)'
+v0 = Array.allocate()
+v0[0] = 1
+v0[1] = 2
+v0[2] = 3
+v0
+</pre>
+
+<p>
+<em>Highly experimental</em> pretty printing version also exists:
+</p>
+<pre>
+% ruby -ramarshal-pretty -e '
+  o = []
+  o << o
+  o = [1, o, [[[2]]], o]
+  AMarshal.dump_pretty(o, STDOUT)'
+v1 = Array.allocate()
+v1[0] = v1
+[1,v1,[[[2]]],v1]
+</pre>
+
+<h2>Requirements</h2>
+<ul>
+<li><a href="http://www.ruby-lang.org/">ruby 1.7.2 (2002-08-13)</a> (older version doesn't work.)
+</ul>
+
+<h2>Download amarshal</h2>
+<dl>
+
+<dt>with HTTP to get (relatively) stable tarball:</dt>
+<dd><p><a href="http://cvs.m17n.org/cgi-bin/viewcvs/amarshal/amarshal-0.1.tar.gz?tarball=1&amp;only_with_tag=amarshal-0_1&amp;cvsroot=ruby">amarshal-0.1.tar.gz</a></p></dd>
+
+<dt>with HTTP to get latest tarball:</dt>
+<dd><p><a href="http://cvs.m17n.org/cgi-bin/viewcvs/amarshal/amarshal-latest.tar.gz?tarball=1&amp;cvsroot=ruby">amarshal-latest.tar.gz</a></p></dd>
+
+<dt>with <a href="http://www.cvshome.org/">CVS</a>:</dt>
+<dd>
+<pre>
+% cvs -d :pserver:anonymous@cvs.m17n.org:/cvs/ruby login
+(Logging in to anonymous@cvs.m17n.org)
+CVS password: <a href="#cvspassword">(just hit return)</a></it>
+% cvs -d :pserver:anonymous@cvs.m17n.org:/cvs/ruby co amarshal
+</pre>
+<a name="cvspassword">The cvs password can be any string</a>.
+</dd>
+
+<dt>with <a href="http://viewcvs.sourceforge.net/">ViewCVS</a>:</dt>
+<dd><p><a href="http://cvs.m17n.org/cgi-bin/viewcvs/amarshal/?cvsroot=ruby">click here to browse source code</a>.</p></dd>
+
+</dl>
+
+</ul>
+<hr>
+<address><a href="http://cvs.m17n.org/~akr/">akr@m17n.org</a></address>
+</body>
+</html>
