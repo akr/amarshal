@@ -260,7 +260,7 @@ class Float
         "0.0"
       end
     else
-      str = '%.16g' % self
+      str = '%.17g' % self
       str << ".0" if /\A-?[0-9]+\z/ =~ str
       str
     end
