@@ -106,6 +106,10 @@ class Object
   def instance_variable_set(var, val)
     eval "#{var} = val"
   end
+
+  def am_initialize(*args)
+    am_orig_initialize(*args)
+  end
 end
 
 class Array
@@ -121,11 +125,7 @@ class Exception
     init_proc.call(:am_initialize, message)
     init_proc.call(:set_backtrace, backtrace) if backtrace
   end
-
   alias am_orig_initialize initialize
-  def am_initialize(mesg)
-    am_orig_initialize(mesg)
-  end
 end
 
 class FalseClass
@@ -189,11 +189,7 @@ class Range
     super
     init_proc.call(:am_initialize, first, last, exclude_end?)
   end
-
   alias am_orig_initialize initialize
-  def am_initialize(first, last, exclude_end)
-    am_orig_initialize(first, last, exclude_end)
-  end
 end
 
 class Regexp
@@ -203,11 +199,7 @@ class Regexp
     super
     init_proc.call(:am_initialize, self.source, self.options)
   end
-
   alias am_orig_initialize initialize
-  def am_initialize(source, options)
-    am_orig_initialize(source, options)
-  end
 end
 
 class String
@@ -217,11 +209,7 @@ class String
     super
     init_proc.call(:am_initialize, String.new(self))
   end
-
   alias am_orig_initialize initialize
-  def am_initialize(str)
-    am_orig_initialize(str)
-  end
 end
 
 class Struct
