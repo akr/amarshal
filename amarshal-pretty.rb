@@ -199,6 +199,7 @@ end
 
 class Array
   def am_compound_literal
+    return nil unless self.instance_variables.empty?
     t = AMarshal::Template.new
     unless self.class == Array
       t.add_string self.class.name
@@ -220,6 +221,8 @@ end
 
 class Hash
   def am_compound_literal
+    return nil unless self.instance_variables.empty?
+    return nil if self.default
     if self.class == Hash
       beg_str = '{'
       assoc_sep = '=>'
@@ -250,6 +253,7 @@ end
 
 class Range
   def am_compound_literal
+    return nil unless self.instance_variables.empty?
     t = AMarshal::Template.new
     if self.class == Range
       beg_str = '('
