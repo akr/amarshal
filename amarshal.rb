@@ -8,46 +8,36 @@ module AMarshal
   end
 
   def AMarshal.dump(obj, port='')
-    vars = {}
-    var = dump_rec obj, port, vars
-    port << "#{var}\n"
+    names = {}
+    name = dump_rec obj, port, names
+    port << "#{name}\n"
   end
 
-  def AMarshal.dump_rec(obj, port, vars)
+  def AMarshal.dump_rec(obj, port, names)
     id = obj.__id__
-    return vars[id] if vars.include? id
+    return names[id] if names.include? id
 
     name = nil
-    obj.am_nameinit(
-      lambda {|name| vars[id] = name},
-      lambda {|init_method, *init_args|
-	dump_call(port, name, init_method,
-		  init_args.map {|arg| dump_rec(arg, port, vars)})
-      }) and
+    init_proc = lambda {|init_method, *init_args|
+		  dump_call(port, name, init_method,
+			    init_args.map {|arg| dump_rec(arg, port, names)})
+		}
+
+    obj.am_nameinit(lambda {|name| names[id] = name}, init_proc) and
       return name
 
-    vars[id] = var = "v#{vars.size}"
+    names[id] = name = "v#{names.size}"
 
-    obj.am_litinit(
-      lambda {|lit| port << "#{var} = #{lit}\n"},
-      lambda {|init_method, *init_args|
-	dump_call(port, var, init_method,
-		  init_args.map {|arg| dump_rec(arg, port, vars)})
-      }) and
-      return var
+    obj.am_litinit(lambda {|lit| port << "#{name} = #{lit}\n"}, init_proc) and
+      return name
 
-    obj.am_allocinit(
-      lambda {|alloc_receiver, alloc_method, *alloc_args|
-	receiver = dump_rec(alloc_receiver, port, vars)
-	args = alloc_args.map {|arg| dump_rec(arg, port, vars)}
-	port << "#{var} = "
-	dump_call(port, receiver, alloc_method, args)
-      },
-      lambda {|init_method, *init_args|
-	dump_call(port, var, init_method,
-		  init_args.map {|arg| dump_rec(arg, port, vars)})
-      })
-    return var
+    obj.am_allocinit(lambda {|alloc_receiver, alloc_method, *alloc_args|
+		       receiver = dump_rec(alloc_receiver, port, names)
+		       args = alloc_args.map {|arg| dump_rec(arg, port, names)}
+		       port << "#{name} = "
+		       dump_call(port, receiver, alloc_method, args)
+		     }, init_proc)
+    return name
   end
 
   def AMarshal.dump_call(port, receiver, method, args)
