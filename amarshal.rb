@@ -167,11 +167,11 @@ class Object
   end
 
   def am_singleton?
-    return true if self.singleton_methods.empty?
+    return true unless self.singleton_methods.empty?
     singleton_class = class << self
       self
     end
-    return true if singleton_class.instance_variables.empty?
+    return true unless singleton_class.instance_variables.empty?
     not (singleton_class.ancestors - self.class.ancestors).empty?
   end
 
