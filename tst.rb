@@ -112,6 +112,16 @@ class AMarshalTest < RUNIT::TestCase
     marshal_equal(nil)
   end
 
+  class CyclicRange < Range
+    def <=>(other) end
+  end
+  def test_cyclic_range
+    o1 = CyclicRange.allocate
+    o1.instance_eval { initialize o1, o1 }
+    o2 = marshaltest(o1)
+    assert_same(o2, o2.begin)
+    assert_same(o2, o2.end)
+  end
 end
 
 RUNIT::CUI::TestRunner.run(AMarshalTest.suite)
