@@ -51,7 +51,7 @@ module MarshalTestLib
     marshal_equal(MyArray.new(0, 1,2,3))
   end
 
-  class MyException < Exception; def initialize(v, *args) super *args; @v = v; end; attr_reader :v; end
+  class MyException < Exception; def initialize(v, *args) super(*args); @v = v; end; attr_reader :v; end
   def test_exception
     marshal_equal(Exception.new('foo')) {|o| o.message}
     marshal_equal(MyException.new(20, "bar")) {|o| [o.message, o.v]}
@@ -99,27 +99,27 @@ module MarshalTestLib
     marshal_equal(-0.0) {|o| 1.0/o}
   end
 
-  class MyRange < Range; def initialize(v, *args) super *args; @v = v; end end
+  class MyRange < Range; def initialize(v, *args) super(*args); @v = v; end end
   def test_range
     marshal_equal(1..2)
     marshal_equal(1...3)
     marshal_equal(MyRange.new(4,5,8, false))
   end
 
-  class MyRegexp < Regexp; def initialize(v, *args) super *args; @v = v; end end
+  class MyRegexp < Regexp; def initialize(v, *args) super(*args); @v = v; end end
   def test_regexp
     marshal_equal(/a/)
     marshal_equal(MyRegexp.new(10, "a"))
   end
 
-  class MyString < String; def initialize(v, *args) super *args; @v = v; end end
+  class MyString < String; def initialize(v, *args) super(*args); @v = v; end end
   def test_string
     marshal_equal("abc")
     marshal_equal(MyString.new(10, "a"))
   end
 
   MyStruct = Struct.new("MyStruct", :a, :b)
-  class MySubStruct < MyStruct; def initialize(v, *args) super *args; @v = v; end end
+  class MySubStruct < MyStruct; def initialize(v, *args) super(*args); @v = v; end end
   def test_struct
     marshal_equal(MyStruct.new(1,2))
     marshal_equal(MySubStruct.new(10,1,2))
@@ -158,7 +158,7 @@ module MarshalTestLib
     marshal_equal("a b".intern)
   end
 
-  class MyTime < Time; def initialize(v, *args) super *args; @v = v; end end
+  class MyTime < Time; def initialize(v, *args) super(*args); @v = v; end end
   def test_time
     marshal_equal(Time.now)
     marshal_equal(MyTime.new(10))
