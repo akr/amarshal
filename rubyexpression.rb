@@ -8,6 +8,9 @@ class RubyExpression
     @curr_prec += 1
   end
 
+  # The order of definitions of subclasses of RubyExpression defines precedence.
+  # Don't reorder until you understand RubyExpression.inherited.
+
   def enclose_display(obj, c, out, indent=0)
     if RubyExpression === obj
       c = c::Prec if Class === c
@@ -209,12 +212,4 @@ class RubyExpression
   def RubyExpression.method_call(receiver, methodname, args=[])
     MethodCall.new(receiver, methodname, args)
   end
-end
-
-if $0 == __FILE__
-  require 'pp'
-  e = RubyExpression.hash(['1', RubyExpression.array(['xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx']*3)])
-  pp e
-  e.pretty_display STDOUT
-  puts
 end
