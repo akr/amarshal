@@ -46,7 +46,8 @@ module AMarshal
     end
 
     def gensym
-      "v#{@varnum += 1}"
+      @port << "v = []\n" if @varnum == 0
+      "v[#{(@varnum += 1) - 1}]"
     end
 
     def dump_pretty
