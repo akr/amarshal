@@ -1,3 +1,10 @@
+=begin
+= AMarshal
+== Methods
+--- AMarshal.dump(obj[, port])
+--- AMarshal.load(port)
+=end
+
 module AMarshal
   class Next < Exception
   end

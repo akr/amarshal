@@ -1,15 +1,16 @@
 =begin
-
-= status
+= amarshal-pretty
 amarshal-pretty is highly experimental.
+== Methods
+--- AMarshal.dump_pretty(obj[, port])
+--- AMarshal.load(port)
 
-= TODO
-
+== TODO
 * remove useless parenthesis by operator preferences.
 * use X.new/X[] if possible (avoid X.allocate)
 * indent using pretty-print
-
 =end
+
 require 'amarshal'
 require 'pp'
 
