@@ -77,18 +77,16 @@ class AMarshal
 end
 
 class MarshalStringWriter
-  def initialize(major=4, minor=6)
-    @buf = ''
+  def initialize(out='', major=4, minor=6)
+    @out = out
     byte major
     byte minor
   end
 
-  def result
-    return @buf
-  end
+  attr_reader :out
 
   def byte(d)
-    @buf << [d].pack('C')
+    @out << [d].pack('C')
   end
 
   def long(d)
@@ -112,7 +110,7 @@ class MarshalStringWriter
 
   def bytes_str(d)
     long d.length
-    @buf << d
+    @out << d
   end
 
   def uclass(c)
@@ -235,7 +233,7 @@ class Regexp
       m.byte ?/
       m.bytes_str str
       m.byte opts
-      return Marshal.load(m.result)
+      return Marshal.load(m.out)
     end
   end
 
