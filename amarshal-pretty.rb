@@ -13,8 +13,6 @@ require 'amarshal'
 require 'prettyprint'
 require 'pp'
 
-require 't'
-
 module AMarshal
   def AMarshal.dump_pretty(obj, port='')
     Pretty.new(obj, port).dump_pretty
