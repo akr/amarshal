@@ -57,7 +57,10 @@ module AMarshal
     def Template.assign_method(obj, methodname, arg)
       Template.new([obj, arg]) {|objs|
 	RubyExpression.binary_exp(
-	  RubyExpression.method_call(convert_to_ruby_expression(objs[0]), methodname), '=',
+	  RubyExpression.method_call(
+	    convert_to_ruby_expression(objs[0]),
+	    methodname),
+	  '=',
 	  convert_to_ruby_expression(objs[1]))
       }
     end
