@@ -1,14 +1,13 @@
-require 'tst'
 require 'amarshal-pretty'
+require 'tst-marshal'
 
 class AMarshalPrettyTest < RUNIT::TestCase
-  include AMarshalTestLib
+  include MarshalTestLib
+  MarshalClass = AMarshal
+  #DebugPrint = true
 
-  def marshaltest(o1)
-    str = AMarshal.dump_pretty(o1)
-    o2 = AMarshal.load(str)
-    #print str; print "\n"
-    o2
+  def encode(o)
+    AMarshal.dump_pretty(o)
   end
 end
 
