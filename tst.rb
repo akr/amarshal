@@ -13,6 +13,12 @@ class AMarshalTest < RUNIT::TestCase
   def marshal_equal(o1)
     o2 = marshaltest(o1)
     assert_equal(o1.class, o2.class)
+    iv1 = o1.instance_variables.sort
+    iv2 = o1.instance_variables.sort
+    assert_equal(iv1, iv2)
+    val1 = iv1.map {|var| o1.instance_eval {eval var}}
+    val2 = iv1.map {|var| o2.instance_eval {eval var}}
+    assert_equal(val1, val2)
     if block_given?
       assert_equal(yield(o1), yield(o2))
     else
@@ -28,10 +34,10 @@ class AMarshalTest < RUNIT::TestCase
     marshal_equal(MyObject.new(2)) {|o| o.v}
   end
 
-  class MyArray < Array; def initialize(v, *arr) super arr; @v = v; end; attr_reader :v; end
+  class MyArray < Array; def initialize(v, *args) super args; @v = v; end end
   def test_array
     marshal_equal([1,2,3])
-    marshal_equal(MyArray.new(0, 1,2,3)) {|o| [o, o.v]}
+    marshal_equal(MyArray.new(0, 1,2,3))
   end
 
   class MyException < Exception; def initialize(v, *args) super *args; @v = v; end; attr_reader :v; end
@@ -44,12 +50,12 @@ class AMarshalTest < RUNIT::TestCase
     marshal_equal(false)
   end
 
-  class MyHash < Hash; def initialize(v) super(); @v = v; end; attr_reader :v; end
+  class MyHash < Hash; def initialize(v) super(); @v = v; end end
   def test_hash
     marshal_equal({1=>2, 3=>4})
     h = MyHash.new(3)
     h[4] = 5
-    marshal_equal(h) {|o| [o, o.v]}
+    marshal_equal(h)
   end
 
   def test_bignum
@@ -68,37 +74,37 @@ class AMarshalTest < RUNIT::TestCase
     assert_equal(1.0/-0.0, 1.0/marshaltest(-0.0))
   end
 
-  class MyRange < Range; def initialize(v, *args) super *args; @v = v; end; attr_reader :v; end
+  class MyRange < Range; def initialize(v, *args) super *args; @v = v; end end
   def test_range
     marshal_equal(1..2)
     marshal_equal(1...3)
-    marshal_equal(MyRange.new(4,5,8, false)) {|o| [o, o.v]}
+    marshal_equal(MyRange.new(4,5,8, false))
   end
 
-  class MyRegexp < Regexp; def initialize(v, *args) super *args; @v = v; end; attr_reader :v; end
+  class MyRegexp < Regexp; def initialize(v, *args) super *args; @v = v; end end
   def test_regexp
     marshal_equal(/a/)
-    marshal_equal(MyRegexp.new(10, "a")) {|o| [o, o.v]}
+    marshal_equal(MyRegexp.new(10, "a"))
   end
 
-  class MyString < String; def initialize(v, *args) super *args; @v = v; end; attr_reader :v; end
+  class MyString < String; def initialize(v, *args) super *args; @v = v; end end
   def test_string
     marshal_equal("abc")
-    marshal_equal(MyString.new(10, "a")) {|o| [o, o.v]}
+    marshal_equal(MyString.new(10, "a"))
   end
 
   MyStruct = Struct.new("MyStruct", :a, :b)
-  class MySubStruct < MyStruct; def initialize(v, *args) super *args; @v = v; end; attr_reader :v; end
+  class MySubStruct < MyStruct; def initialize(v, *args) super *args; @v = v; end end
   def test_struct
     marshal_equal(MyStruct.new(1,2))
-    marshal_equal(MySubStruct.new(10,1,2)) {|o| [o, o.v]}
+    marshal_equal(MySubStruct.new(10,1,2))
   end
 
   def test_symbol
     marshal_equal(:a)
   end
 
-  class MyTime < Time; def initialize(v, *args) super *args; @v = v; end; attr_reader :v; end
+  class MyTime < Time; def initialize(v, *args) super *args; @v = v; end end
   def test_time
     marshal_equal(Time.now)
     marshal_equal(MyTime.new(10))
