@@ -54,7 +54,7 @@ module AMarshalTestLib
     h[4] = 5
     marshal_equal(h)
     h = Hash.new {}
-    assert_exception(TypeError) { marshaltest(h) }
+    assert_exception(ArgumentError) { marshaltest(h) }
   end
 
   def test_bignum

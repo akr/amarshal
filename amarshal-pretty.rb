@@ -33,7 +33,7 @@ module AMarshal
     def map_object!
       each_with_index {|elt, i|
         next if i % 2 == 0
-	next if Breakable === elt
+	next if Breakable === elt # xxx: ambiguous to dump Breakable.
 	self[i] = yield elt
       }
     end

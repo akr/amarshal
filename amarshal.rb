@@ -76,7 +76,7 @@ end
 [IO, Binding, Continuation, Data, Dir, File::Stat, MatchData, Method, Proc, Thread, ThreadGroup].each {|c|
   c.class_eval {
     def am_allocinit(alloc_proc, init_proc)
-      raise TypeError.new("can't dump #{self.class}")
+      raise ArgumentError.new("can't dump #{self.class}")
     end
   }
 }
@@ -147,7 +147,7 @@ end
 
 class Hash
   def am_allocinit(alloc_proc, init_proc)
-    raise TypeError.new("can't dump #{self.class} with default proc") if self.default_proc
+    raise ArgumentError.new("can't dump #{self.class} with default proc") if self.default_proc
     super
     self.each {|k, v| init_proc.call(:[]=, k, v)}
     init_proc.call(:default=, self.default) if self.default != nil
@@ -248,6 +248,7 @@ end
 
 class Time
   def am_allocinit(alloc_proc, init_proc)
+    # should use X.utc if X.utc is not redefined.
     t = self.dup.utc
     alloc_proc.call(self.class, :am_utc, t.year, t.mon, t.day, t.hour, t.min, t.sec, t.usec)
     super(nil, init_proc)
