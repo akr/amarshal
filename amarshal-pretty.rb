@@ -1,13 +1,13 @@
 =begin
 
-* 演算子の優先順位を管理して、不要な括弧を省く
-* allocate をなるべく使わない
-* X.new, X[...] などをもっと使う
-* pretty-print を使ってインデント
+= status
+amarshal-pretty is highly experimental.
 
-* instance_variable_set をメソッドチェイン可能にする。
-* メソッドチェインを使う
-* XXX.am_new みたいなものをつくるほうがいい?
+= TODO
+
+* remove useless parenthesis by operator preferences.
+* use X.new/X[] if possible (avoid X.allocate)
+* indent using pretty-print
 
 =end
 require 'amarshal'
@@ -292,79 +292,3 @@ class Range
     t
   end
 end
-
-=begin
-o = [1]
-o << o
-=end
-
-=begin
-o = [1, [2], 3]
-o << o
-=end
-
-=begin
-o0 = [[[8]]]
-o = [1,[[[2]]],3, [[[o0]]]]
-o << o
-o2 = [o,o,o]
-o0 << o2
-o2 = [[[[o2]]]]
-o = o2
-=end
-
-=begin
-o0 = [[1, 2, 3]]
-o = [o0, o0]
-=end
-
-=begin
-o1 = [1]
-o = [[[[[[o1]]]]]]
-o1 << o
-=end
-
-=begin
-o1 = [[[1]]]
-o2 = [o1, o1]
-o3 = [[{[o2]=>1}]]
-o4 = [o3, o2, o3, o2]
-o = [[[o4]]]
-=end
-
-=begin
-class A < Array
-end
-o = A[1,2,3]
-=end
-
-=begin
-class H < Hash
-end
-o = H[1,2,3,4]
-=end
-
-=begin
-o = {}
-o[o] = {o=>o, 2=>3}
-=end
-
-=begin
-o = 1...2
-=end
-
-=begin
-class R < Range
-end
-o = R.new(1, 2, true)
-=end
-
-=begin
-str = AMarshal.dump_pretty(o)
-print str
-pp o
-ox = eval(str)
-pp ox
-p [:class_eq, o.class == ox.class]
-#p o == ox
-=end
