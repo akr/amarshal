@@ -50,12 +50,15 @@ class AMarshalTest < RUNIT::TestCase
     marshal_equal(false)
   end
 
-  class MyHash < Hash; def initialize(v) super(); @v = v; end end
+  class MyHash < Hash; def initialize(v, *args) super(*args); @v = v; end end
   def test_hash
     marshal_equal({1=>2, 3=>4})
-    h = MyHash.new(3)
+    h = Hash.new(:default)
+    h[5] = 6
+    marshal_equal(h) {|o| [o, o.default]}
+    h = MyHash.new(7, 8)
     h[4] = 5
-    marshal_equal(h)
+    marshal_equal(h) {|o| [o, o.default]}
   end
 
   def test_bignum
@@ -102,6 +105,10 @@ class AMarshalTest < RUNIT::TestCase
 
   def test_symbol
     marshal_equal(:a)
+    marshal_equal(:a?)
+    marshal_equal(:a!)
+    marshal_equal(:[]=)
+    marshal_equal("a b".intern)
   end
 
   class MyTime < Time; def initialize(v, *args) super *args; @v = v; end end
