@@ -4,8 +4,14 @@ require 'runit/testcase'
 require 'runit/cui/testrunner'
 
 class AMarshalTest < RUNIT::TestCase
+  def marshaltest(o1)
+    str = AMarshal.dump(o1)
+    #print str; print "\n"
+    o2 = AMarshal.load(str)
+  end
+
   def marshal_equal(o1)
-    o2 = AMarshal.load(AMarshal.dump(o1))
+    o2 = marshaltest(o1)
     assert_equal(o1.class, o2.class)
     if block_given?
       assert_equal(yield(o1), yield(o2))
@@ -25,7 +31,7 @@ class AMarshalTest < RUNIT::TestCase
   class MyArray < Array; def initialize(v, *arr) super arr; @v = v; end; attr_reader :v; end
   def test_array
     marshal_equal([1,2,3])
-    marshal_equal(MyArray.new(0, [1,2,3])) {|o| [o, o.v]}
+    marshal_equal(MyArray.new(0, 1,2,3)) {|o| [o, o.v]}
   end
 
   class MyException < Exception; def initialize(v, *args) super *args; @v = v; end; attr_reader :v; end
@@ -56,6 +62,10 @@ class AMarshalTest < RUNIT::TestCase
 
   def test_float
     marshal_equal(1.0)
+    marshal_equal(1.0/0.0)
+    marshal_equal(-1.0/0.0)
+    assert(marshaltest(0.0/0.0).nan?)
+    assert_equal(1.0/-0.0, 1.0/marshaltest(-0.0))
   end
 
   class MyRange < Range; def initialize(v, *args) super *args; @v = v; end; attr_reader :v; end

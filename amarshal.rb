@@ -166,6 +166,12 @@ class Float
       else
 	"Float.am_neg_inf"
       end
+    elsif self == 0.0
+      if 1.0 / self < 0
+        "-0.0"
+      else
+        "0.0"
+      end
     else
       str = '%.16g' % self
       str << ".0" if /\A-?[0-9]+\z/ =~ str
