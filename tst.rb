@@ -172,6 +172,31 @@ module AMarshalTestLib
     assert_same(o2, o2.begin)
     assert_same(o2, o2.end)
   end
+
+  def test_singleton
+    o = Object.new
+    def o.m() end
+    assert_exception(TypeError) { marshaltest(o) }
+  end
+
+  module Mod end
+  def test_extend
+    o = Object.new
+    o.extend Mod
+    marshal_equal(o) {|obj| obj.kind_of? Mod}
+    o = Object.new
+    o.extend Module.new
+    assert_exception(ArgumentError) { marshaltest(o) }
+  end
+
+  def test_anonymous
+    c = Class.new
+    assert_exception(ArgumentError) { marshaltest(c) }
+    o = c.new
+    assert_exception(ArgumentError) { marshaltest(o) }
+    m = Module.new
+    assert_exception(ArgumentError) { marshaltest(m) }
+  end
 end
 
 class AMarshalTest < RUNIT::TestCase
