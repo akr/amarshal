@@ -19,23 +19,48 @@ module AMarshal
     Pretty.new(obj, port).dump_pretty
   end
 
-  class Template < Array
+  class Template
+    def Template.[](*elts)
+      t = Template.new
+      elts.each {|elt|
+        case elt
+	when String
+	  t.add_string elt
+	else
+	  t.add_object elt
+	end
+      }
+      t
+    end
+
+    def initialize
+      @contents = []
+      @objects = []
+    end
+
     def add_object(obj)
-      self << "" if self.size % 2 == 0
-      self << obj
+      @contents << @objects.size
+      @objects << obj
     end
 
     def add_string(str)
-      self << "" if self.size % 2 == 0
-      self.last << str
+      unless @contents.last.class == String
+        @contents << ""
+      end
+      @contents.last << str
     end
 
-    def map_object!
-      each_with_index {|elt, i|
-        next if i % 2 == 0
-	next if Breakable === elt # xxx: ambiguous to dump Breakable.
-	self[i] = yield elt
-      }
+    def add_breakable(s=' ')
+      @contents << Breakable.new(s)
+    end
+    class Breakable < String
+      def pretty_display(out)
+        out.breakable self
+      end
+    end
+
+    def map_object!(&block)
+      @objects.map!(&block)
     end
 
     def display(out)
@@ -44,31 +69,24 @@ module AMarshal
 
     def pretty_display(out)
       out.group(1) {
-        self.each_with_index {|elt, i|
-	  if i % 2 == 0
-	    out.text elt.to_s
-	  elsif Template === elt
-	    elt.pretty_display out
-	  else
-	    out.text elt.to_s
+	@contents.each {|elt|
+	  case elt
+	  when Breakable
+	    out.breakable elt
+	  when String
+	    out.text elt
+	  when Integer
+	    obj = @objects[elt]
+	    if Template === obj
+	      obj.pretty_display out
+	    else
+	      out.text obj.to_s
+	    end
 	  end
 	}
       }
     end
 
-    def add_breakable(s=' ')
-      self.add_object Breakable.new(s)
-    end
-
-    class Breakable < Template
-      def initialize(s)
-        self.add_string s
-      end
-
-      def pretty_display(out)
-        out.breakable self[0]
-      end
-    end
   end
 
   class Pretty
