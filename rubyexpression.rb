@@ -180,9 +180,9 @@ class RubyExpression
     end
 
     def pretty_format(out)
-      out.text @left
-      @exp.pretty_format out
-      out.text @right
+      out.group(1, @left, @right) {
+	@exp.pretty_format out
+      }
     end
   end
 
