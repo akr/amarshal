@@ -155,11 +155,20 @@ class Fixnum
 end
 
 class Float
-  # xxx NaN, Inf?
   def am_literal
-    str = '%.16g' % self
-    str << ".0" if /\A[-+][0-9]*\z/ =~ str
-    str
+    if self.nan?
+      "(0.0/0.0)"
+    elsif self.infinite?
+      if 0 < self
+	"(1.0/0.0)"
+      else
+	"(-1.0/0.0)"
+      end
+    else
+      str = '%.16g' % self
+      str << ".0" if /\A[-+][0-9]*\z/ =~ str
+      str
+    end
   end
 end
 
