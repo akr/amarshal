@@ -30,13 +30,15 @@ v0
 </p>
 <pre>
 % ruby -ramarshal-pretty -e '
-  o = []
-  o << o
-  o = [1, o, [[[2]]], o]
+  o = [1,2]
+  o << [[3], [[4]], [[[o]]]]
+  o = [5, o, [[[o]]], o] 
   AMarshal.dump_pretty(o, STDOUT)'
 v1 = Array.allocate()
-v1[0] = v1
-[1,v1,[[[2]]],v1]
+v1 << 1
+v1 << 2
+v1 << [[3],[[4]],[[[v1]]]]
+[5,v1,[[[v1]]],v1]
 </pre>
 
 <h2>Requirements</h2>
