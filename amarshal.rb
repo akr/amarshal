@@ -157,12 +157,12 @@ end
 class Float
   def am_literal
     if self.nan?
-      "(0.0/0.0)"
+      "Float.am_nan"
     elsif self.infinite?
       if 0 < self
-	"(1.0/0.0)"
+	"Float.am_pos_inf"
       else
-	"(-1.0/0.0)"
+	"Float.am_neg_inf"
       end
     else
       str = '%.16g' % self
@@ -170,6 +170,19 @@ class Float
       str
     end
   end
+
+  def Float.am_nan
+    0.0 / 0.0
+  end
+
+  def Float.am_pos_inf
+    1.0 / 0.0
+  end
+
+  def Float.am_neg_inf
+    -1.0 / 0.0
+  end
+
 end
 
 class Range
