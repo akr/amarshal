@@ -63,7 +63,7 @@ class Object
     respond_to?(:am_name) and
     begin
       name_proc.call(am_name)
-      am_init_instance_variables init_proc
+      #am_init_instance_variables init_proc
       return true
     rescue AMarshal::Next
     end
