@@ -51,6 +51,8 @@ module AMarshal
     case method
     when :[]=
       port << "#{receiver}[#{args.first}] = #{args.last}\n"
+    when :<<
+      port << "#{receiver} << #{args.first}\n"
     else
       port << "#{receiver}.#{method}(#{args.map {|arg| arg.to_s}.join ","})\n"
     end
@@ -112,7 +114,7 @@ end
 class Array
   def am_allocinit(alloc_proc, init_proc)
     super
-    self.each_with_index {|v, i| init_proc.call(:[]=, i, v)}
+    self.each_with_index {|v, i| init_proc.call(:<<, v)}
   end
 end
 
