@@ -23,6 +23,7 @@ module AMarshal
     PrecRight = {}
     PrecLeft = {}
     Arity = {}
+    FullFormat = {}
     PrettyPrinter = {}
     @curr_prec = 1
 
@@ -38,7 +39,6 @@ module AMarshal
 	      obj = children[#{i}]
 	      obj = objects[obj] if Integer === obj
 	      if Template === obj
-		# #{key.dump} #{i}
 		if #{prec} <= obj.prec
 		  obj.pretty_display out
 		else
@@ -101,7 +101,7 @@ module AMarshal
 	PrecLeft[f2] = base_prec
 	PrecRight[f2] = prec
 	Arity[f2] = f2.count('@')
-	PrettyPrinter[f2] = pretty_printer(f, f2)
+	FullFormat[f2] = f
       }
 
       if name
@@ -149,7 +149,6 @@ module AMarshal
     next_prec [:arguments],	%w([@] {@})
 
     #pp PrecRight
-    #pp PrettyPrinter
 
     def Template.create(format, objs=nil, objects=nil)
       Template.new(format, objects) {|t|
@@ -220,6 +219,7 @@ module AMarshal
     end
 
     def pretty_display(out)
+      PrettyPrinter[@format] ||= Template.pretty_printer(FullFormat[@format], @format)
       PrettyPrinter[@format].call(out, @indent, @children, @objects)
     end
   end
