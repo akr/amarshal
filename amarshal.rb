@@ -262,14 +262,12 @@ end
 
 class Struct
   def Struct.basic_new
-    args = [nil] * self.members.length
-    return self.new(*args)
+    return self.new
   end
 
   def am_dump(am)
     name = yield
-    args = (["nil"] * self.length).join(", ")
-    am.print "#{name} = #{am.put(self.class)}.new(#{args})\n"
+    am.print "#{name} = #{am.put(self.class)}.new\n"
     am.put_instance_variables(self, name)
     self.members.each {|m|
       am.print "#{name}[#{am.put(m.intern)}] = #{am.put(self[m])}\n"
