@@ -155,6 +155,7 @@ class Fixnum
 end
 
 class Float
+  # Float.am_nan, Float.am_pos_inf and Float.am_neg_inf are not literal.
   def am_literal
     if self.nan?
       "Float.am_nan"
@@ -171,18 +172,9 @@ class Float
     end
   end
 
-  def Float.am_nan
-    0.0 / 0.0
-  end
-
-  def Float.am_pos_inf
-    1.0 / 0.0
-  end
-
-  def Float.am_neg_inf
-    -1.0 / 0.0
-  end
-
+  def Float.am_nan() 0.0 / 0.0 end
+  def Float.am_pos_inf() 1.0 / 0.0 end
+  def Float.am_neg_inf() -1.0 / 0.0 end
 end
 
 class Range
