@@ -112,6 +112,13 @@ class AMarshalTest < RUNIT::TestCase
     marshal_equal(nil)
   end
 
+  def test_share
+    o = [:share]
+    o1 = [o, o]
+    o2 = marshaltest(o1)
+    assert_same(o2.first, o2.last)
+  end
+
   class CyclicRange < Range
     def <=>(other) end
   end
