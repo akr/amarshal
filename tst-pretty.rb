@@ -9,6 +9,10 @@ class AMarshalPrettyTest < RUNIT::TestCase
   def encode(o)
     AMarshal.dump_pretty(o)
   end
+
+  def test_pretty
+    assert_equal("[]\n", encode([]))
+  end
 end
 
 if $0 == __FILE__
