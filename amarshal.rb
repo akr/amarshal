@@ -60,11 +60,15 @@ module AMarshal
   def AMarshal.dump_call(port, receiver, method, args)
     case method
     when :[]=
-      port << "#{receiver}[#{args.first}] = #{args.last}\n"
+      port << "#{receiver}[#{args[0]}] = #{args[1]}\n"
     when :<<
-      port << "#{receiver} << #{args.first}\n"
+      port << "#{receiver} << #{args[0]}\n"
     else
-      port << "#{receiver}.#{method}(#{args.map {|arg| arg.to_s}.join ","})\n"
+      if /\A([A-Za-z_][0-9A-Za-z_]*)=\z/ =~ method.to_s
+	port << "#{receiver}.#{$1} = #{args[0]}\n"
+      else
+	port << "#{receiver}.#{method}(#{args.map {|arg| arg.to_s}.join ","})\n"
+      end
     end
   end
 end
