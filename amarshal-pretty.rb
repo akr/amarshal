@@ -233,7 +233,7 @@ module AMarshal
 
 	template = nil
 	inits = []
-	obj.am_templateinit(lambda {|template|}, lambda {|init| inits << init})
+	obj.am_templateinit(lambda {|template|}, lambda {|init_method, *init_args| inits << [init_method, *init_args]})
 	template.map_object! {|o| visit(o)} if Template === template
 	  
 	if 1 < @count[id] || !inits.empty?
@@ -260,7 +260,7 @@ module AMarshal
 
       obj.am_nameinit(
 	lambda {|name| @names[id] = name},
-	lambda {|init| inits << init}) and
+	lambda {|init_method, *init_args| inits << [init_method, *init_args]}) and
 	begin
 	  @visiting[id] = inits
 	  return @names[id]
@@ -270,7 +270,7 @@ module AMarshal
 
       obj.am_litinit(
 	lambda {|lit| @port << "#{name} = #{lit}\n"},
-	lambda {|init| inits << init}) and
+	lambda {|init_method, *init_args| inits << [init_method, *init_args]}) and
 	begin
 	  @visiting[id] = inits
 	  return @names[id]
@@ -284,7 +284,7 @@ module AMarshal
 	  display_template AMarshal.template_call(receiver, alloc_method, args,
 	    alloc_receiver.private_methods(true).include?(alloc_method.to_s))
 	},
-	lambda {|init| inits << init})
+	lambda {|init_method, *init_args| inits << [init_method, *init_args]})
 
       @visiting[id] = inits
       return @names[id]

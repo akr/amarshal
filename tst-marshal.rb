@@ -71,7 +71,7 @@ module MarshalTestLib
     h[4] = 5
     marshal_equal(h)
     h = Hash.new {}
-    assert_exception(ArgumentError) { marshaltest(h) }
+    assert_exception(TypeError) { marshaltest(h) }
   end
 
   def test_bignum
@@ -154,7 +154,7 @@ module MarshalTestLib
     marshal_equal(:-@)
     marshal_equal(:[])
     marshal_equal(:[]=)
-    marshal_equal(:`)
+    marshal_equal(:`) # `
     marshal_equal("a b".intern)
   end
 
@@ -180,7 +180,7 @@ module MarshalTestLib
   end
 
   class CyclicRange < Range
-    def <=>(other) end
+    def <=>(other) self.object_id <=> other.object_id end
   end
   def test_cyclic_range
     o1 = CyclicRange.allocate
@@ -211,7 +211,7 @@ module MarshalTestLib
     marshal_equal(o) {|obj| obj.kind_of? Mod1}
     o = Object.new
     o.extend Module.new
-    assert_exception(ArgumentError) { marshaltest(o) }
+    assert_exception(TypeError) { marshaltest(o) }
     o = Object.new
     o.extend Mod1
     o.extend Mod2
@@ -220,11 +220,11 @@ module MarshalTestLib
 
   def test_anonymous
     c = Class.new
-    assert_exception(ArgumentError) { marshaltest(c) }
+    assert_exception(TypeError) { marshaltest(c) }
     o = c.new
-    assert_exception(ArgumentError) { marshaltest(o) }
+    assert_exception(TypeError) { marshaltest(o) }
     m = Module.new
-    assert_exception(ArgumentError) { marshaltest(m) }
+    assert_exception(TypeError) { marshaltest(m) }
   end
 end
 

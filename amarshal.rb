@@ -81,7 +81,7 @@ end
 [IO, Binding, Continuation, Data, Dir, File::Stat, MatchData, Method, Proc, Thread, ThreadGroup].each {|c|
   c.class_eval {
     def am_allocinit(alloc_proc, init_proc)
-      raise ArgumentError.new("can't dump #{self.class}")
+      raise TypeError.new("can't dump #{self.class}")
     end
   }
 }
@@ -140,7 +140,7 @@ class Object
 
   def am_litinit(lit_proc, init_proc)
     respond_to?(:am_literal) and
-    self.class.instance_methods(true).include?("am_literal") and
+    self.class.instance_methods(false).include?("am_literal") and
     catch(AMarshal::Next) {
       lit_proc.call(am_literal)
       am_init_instance_variables init_proc
@@ -216,7 +216,7 @@ end
 
 class Hash
   def am_allocinit(alloc_proc, init_proc)
-    raise ArgumentError.new("can't dump #{self.class} with default proc") if self.default_proc
+    raise TypeError.new("can't dump #{self.class} with default proc") if self.default_proc
     super
     self.each {|k, v| init_proc.call(:[]=, k, v)}
     init_proc.call(:default=, self.default) if self.default != nil
@@ -226,7 +226,7 @@ end
 class Module
   def am_name
     n = name
-    raise ArgumentError.new("can't dump anonymous class #{self.inspect}") if n.empty?
+    raise TypeError.new("can't dump anonymous module #{self.inspect}") if n.empty?
     n
   end
 end
