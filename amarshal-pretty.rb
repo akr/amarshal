@@ -395,10 +395,10 @@ class Range
 	return nil
       end
       if self.exclude_end?
-	# C.new(a, b)
+	# C.new(a, b, true)
 	AMarshal::Template.method_call(self.class, 'new', [first, last, true])
       else
-	# C.new(a, b, true)
+	# C.new(a, b)
 	AMarshal::Template.method_call(self.class, 'new', [first, last])
       end
     end
