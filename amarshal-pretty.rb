@@ -137,8 +137,8 @@ module AMarshal
       @names = {}
       @gc_guard = {}
       template = visit(@obj)
-      display_template template
       @gc_guard = nil
+      display_template template
     end
 
     def count(obj)
