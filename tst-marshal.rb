@@ -199,6 +199,8 @@ module MarshalTestLib
       @v = 1
     end
     assert_exception(TypeError) { marshaltest(o) }
+    assert_exception(TypeError) { marshaltest(ARGF) }
+    assert_exception(TypeError) { marshaltest(ENV) }
   end
 
   module Mod1 end
