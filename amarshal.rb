@@ -80,7 +80,37 @@ end
   }
 }
 
+class Module
+  def method_defining_module_internal(meth)
+    meth = meth.to_s if Symbol === meth
+    if self.instance_methods.include?(meth) || self.private_instance_methods.include?(meth)
+      return self
+    end
+    self.ancestors.each {|m|
+      if m.instance_methods.include?(meth) || m.private_instance_methods.include?(meth)
+        return m
+      end
+    }
+    nil
+  end
+
+  MethodDefiningModuleCache = {}
+  def method_defining_module(meth)
+    key = [self, meth]
+    key.freeze
+    MethodDefiningModuleCache.fetch(key) {
+      MethodDefiningModuleCache[key] = method_defining_module_internal(meth)
+    }
+  end
+end
+
 class Object
+  def singleton_class
+    class << self
+      self
+    end
+  end
+
   def am_nameinit(name_proc, init_proc)
     respond_to?(:am_name) and
     catch(AMarshal::Next) {
@@ -245,9 +275,15 @@ end
 
 class Time
   def am_allocinit(alloc_proc, init_proc)
-    # should use X.utc if X.utc is not redefined.
+    if self.class == Time ||
+       self.class.singleton_class.method_defining_module(:utc) ==
+       Time.singleton_class
+      utc = :utc
+    else
+      utc = :am_utc
+    end
     t = self.dup.utc
-    alloc_proc.call(self.class, :am_utc, t.year, t.mon, t.day, t.hour, t.min, t.sec, t.usec)
+    alloc_proc.call(self.class, utc, t.year, t.mon, t.day, t.hour, t.min, t.sec, t.usec)
     super(nil, init_proc)
     init_proc.call(:localtime) unless utc?
   end
