@@ -1,7 +1,7 @@
 require 'amarshal-pretty'
 require 'tst-marshal'
 
-class AMarshalPrettyTest < RUNIT::TestCase
+class AMarshalPrettyTest < Test::Unit::TestCase
   include MarshalTestLib
   MarshalClass = AMarshal
   #DebugPrint = true
@@ -13,8 +13,4 @@ class AMarshalPrettyTest < RUNIT::TestCase
   def test_pretty
     assert_equal("[]\n", encode([]))
   end
-end
-
-if $0 == __FILE__
-  RUNIT::CUI::TestRunner.run(AMarshalPrettyTest.suite)
 end

@@ -1,12 +1,8 @@
 require 'amarshal'
 require 'tst-marshal'
 
-class AMarshalTest < RUNIT::TestCase
+class AMarshalTest < Test::Unit::TestCase
   include MarshalTestLib
   MarshalClass = AMarshal
   #DebugPrint = true
-end
-
-if $0 == __FILE__
-  RUNIT::CUI::TestRunner.run(AMarshalTest.suite)
 end

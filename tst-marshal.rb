@@ -1,5 +1,4 @@
-require 'runit/testcase'
-require 'runit/cui/testrunner'
+require 'test/unit'
 
 module MarshalTestLib
   DebugPrint = false
@@ -71,7 +70,7 @@ module MarshalTestLib
     h[4] = 5
     marshal_equal(h)
     h = Hash.new {}
-    assert_exception(TypeError) { marshaltest(h) }
+    assert_raises(TypeError) { marshaltest(h) }
   end
 
   def test_bignum
@@ -193,14 +192,14 @@ module MarshalTestLib
   def test_singleton
     o = Object.new
     def o.m() end
-    assert_exception(TypeError) { marshaltest(o) }
+    assert_raises(TypeError) { marshaltest(o) }
     o = Object.new
     class << o
       @v = 1
     end
-    assert_exception(TypeError) { marshaltest(o) }
-    assert_exception(TypeError) { marshaltest(ARGF) }
-    assert_exception(TypeError) { marshaltest(ENV) }
+    assert_raises(TypeError) { marshaltest(o) }
+    assert_raises(TypeError) { marshaltest(ARGF) }
+    assert_raises(TypeError) { marshaltest(ENV) }
   end
 
   module Mod1 end
@@ -211,7 +210,7 @@ module MarshalTestLib
     marshal_equal(o) {|obj| obj.kind_of? Mod1}
     o = Object.new
     o.extend Module.new
-    assert_exception(TypeError) { marshaltest(o) }
+    assert_raises(TypeError) { marshaltest(o) }
     o = Object.new
     o.extend Mod1
     o.extend Mod2
@@ -220,18 +219,14 @@ module MarshalTestLib
 
   def test_anonymous
     c = Class.new
-    assert_exception(TypeError) { marshaltest(c) }
+    assert_raises(TypeError) { marshaltest(c) }
     o = c.new
-    assert_exception(TypeError) { marshaltest(o) }
+    assert_raises(TypeError) { marshaltest(o) }
     m = Module.new
-    assert_exception(TypeError) { marshaltest(m) }
+    assert_raises(TypeError) { marshaltest(m) }
   end
 end
 
-class MarshalTest < RUNIT::TestCase
+class MarshalTest < Test::Unit::TestCase
   include MarshalTestLib
-end
-
-if $0 == __FILE__
-  RUNIT::CUI::TestRunner.run(MarshalTest.suite)
 end
