@@ -16,6 +16,14 @@ module AMarshal
 
   def AMarshal.dump(obj, port='')
     names = {}
+    def names.next_index
+      if defined? @next_index
+	@next_index += 1
+      else
+	@next_index = 1
+      end
+      @next_index - 1
+    end
     name = dump_rec obj, port, names
     port << "#{name}\n"
   end
@@ -33,7 +41,9 @@ module AMarshal
     obj.am_nameinit(lambda {|name| names[id] = name}, init_proc) and
       return name
 
-    names[id] = name = "v#{names.size}"
+    next_index = names.next_index
+    port << "v = []\n" if next_index == 0
+    names[id] = name = "v[#{next_index}]"
 
     obj.am_litinit(lambda {|lit| port << "#{name} = #{lit}\n"}, init_proc) and
       return name
