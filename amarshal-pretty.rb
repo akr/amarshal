@@ -34,8 +34,41 @@ module AMarshal
     def map_object!
       each_with_index {|elt, i|
         next if i % 2 == 0
+	next if Breakable === elt
 	self[i] = yield elt
       }
+    end
+
+    def display(out)
+      out << self.to_s
+    end
+
+    def pretty_display(out)
+      out.group(1) {
+        self.each_with_index {|elt, i|
+	  if i % 2 == 0
+	    out.text elt.to_s
+	  elsif Template === elt
+	    elt.pretty_display out
+	  else
+	    out.text elt.to_s
+	  end
+	}
+      }
+    end
+
+    def add_breakable(s=' ')
+      self.add_object Breakable.new(s)
+    end
+
+    class Breakable < Template
+      def initialize(s)
+        self.add_string s
+      end
+
+      def pretty_display(out)
+        out.breakable self[0]
+      end
     end
   end
 
@@ -47,7 +80,15 @@ module AMarshal
     end
 
     def display_template(template)
-      @port << template.to_s << "\n"
+      if Template === template
+	#template.display @port
+	PrettyPrint.format(@port) {|out|
+	  template.pretty_display out
+	}
+	@port << "\n"
+      else
+	@port << template.to_s << "\n"
+      end
     end
 
     def gensym
@@ -153,7 +194,7 @@ module AMarshal
 	  
 	if 1 < @count[id] || !inits.empty?
 	  @names[id] = name = gensym
-	  display_template Template["#{name} =", template]
+	  display_template Template["#{name} = ", template]
 	  inits.each {|init_method, *init_args|
 	    display_template AMarshal.template_call(name, init_method, init_args.map {|arg| visit(arg)})
 	  }
@@ -204,28 +245,6 @@ module AMarshal
       @visiting[id] = inits
       return @names[id]
     end
-  end
-end
-
-class Array
-  def am_compound_literal
-    return nil unless self.instance_variables.empty?
-    t = AMarshal::Template.new
-    unless self.class == Array
-      t.add_string self.class.name
-    end
-    if length == 0
-      t.add_string "[]"
-    else
-      sep = '['
-      self.each {|obj|
-	t.add_string sep
-	t.add_object obj
-	sep = ','
-      }
-      t.add_string ']'
-    end
-    t
   end
 
   def AMarshal.template_call(receiver, method, args)
@@ -285,6 +304,32 @@ class Object
   end
 end
 
+class Array
+  def am_compound_literal
+    return nil unless self.instance_variables.empty?
+    t = AMarshal::Template.new
+    unless self.class == Array
+      t.add_string self.class.name
+    end
+    if length == 0
+      t.add_string "[]"
+    else
+      first = true
+      t.add_string '['
+      self.each {|obj|
+	unless first
+	  t.add_string ','
+	  t.add_breakable
+	end
+	t.add_object obj
+	first = false
+      }
+      t.add_string ']'
+    end
+    t
+  end
+end
+
 class Hash
   def am_compound_literal
     return nil unless self.instance_variables.empty?
@@ -306,8 +351,10 @@ class Hash
       sep = beg_str
       self.each {|k, v|
 	t.add_string sep
+	t.add_breakable if sep == ','
 	t.add_object k
 	t.add_string assoc_sep
+	t.add_breakable
 	t.add_object v
 	sep = ','
       }
