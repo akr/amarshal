@@ -28,17 +28,22 @@ class AMarshalTest < RUNIT::TestCase
     marshal_equal(MyArray.new(0, [1,2,3])) {|o| [o, o.v]}
   end
 
+  class MyException < Exception; def initialize(v, *args) super *args; @v = v; end; attr_reader :v; end
   def test_exception
-    o1 = Exception.new('foo')
-    marshal_equal(o1) {|o| o.message}
+    marshal_equal(Exception.new('foo')) {|o| o.message}
+    marshal_equal(MyException.new(20, "bar")) {|o| [o.message, o.v]}
   end
 
   def test_false
     marshal_equal(false)
   end
 
+  class MyHash < Hash; def initialize(v) super(); @v = v; end; attr_reader :v; end
   def test_hash
     marshal_equal({1=>2, 3=>4})
+    h = MyHash.new(3)
+    h[4] = 5
+    marshal_equal(h) {|o| [o, o.v]}
   end
 
   def test_bignum
@@ -53,9 +58,11 @@ class AMarshalTest < RUNIT::TestCase
     marshal_equal(1.0)
   end
 
+  class MyRange < Range; def initialize(v, *args) super *args; @v = v; end; attr_reader :v; end
   def test_range
     marshal_equal(1..2)
-    marshal_equal(1..3)
+    marshal_equal(1...3)
+    marshal_equal(MyRange.new(4,5,8, false)) {|o| [o, o.v]}
   end
 
   class MyRegexp < Regexp; def initialize(v, *args) super *args; @v = v; end; attr_reader :v; end
@@ -64,21 +71,27 @@ class AMarshalTest < RUNIT::TestCase
     marshal_equal(MyRegexp.new(10, "a")) {|o| [o, o.v]}
   end
 
+  class MyString < String; def initialize(v, *args) super *args; @v = v; end; attr_reader :v; end
   def test_string
     marshal_equal("abc")
+    marshal_equal(MyString.new(10, "a")) {|o| [o, o.v]}
   end
 
   MyStruct = Struct.new("MyStruct", :a, :b)
+  class MySubStruct < MyStruct; def initialize(v, *args) super *args; @v = v; end; attr_reader :v; end
   def test_struct
     marshal_equal(MyStruct.new(1,2))
+    marshal_equal(MySubStruct.new(10,1,2)) {|o| [o, o.v]}
   end
 
   def test_symbol
     marshal_equal(:a)
   end
 
+  class MyTime < Time; def initialize(v, *args) super *args; @v = v; end; attr_reader :v; end
   def test_time
     marshal_equal(Time.now)
+    marshal_equal(MyTime.new(10))
   end
 
   def test_true
