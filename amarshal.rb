@@ -108,7 +108,7 @@ class MarshalStringWriter
     end
   end
 
-  def bytes_str(d)
+  def bytes(d)
     long d.length
     @out << d
   end
@@ -116,13 +116,13 @@ class MarshalStringWriter
   def uclass(c)
     byte ?C
     byte ?:
-    bytes_str c.name
+    bytes c.name
     yield
   end
 
   def regexp(str, opts)
     byte ?/
-    bytes_str str
+    bytes str
     byte opts
   end
 end
