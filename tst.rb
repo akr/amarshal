@@ -6,8 +6,9 @@ require 'runit/cui/testrunner'
 class AMarshalTest < RUNIT::TestCase
   def marshaltest(o1)
     str = AMarshal.dump(o1)
-    #print str; print "\n"
     o2 = AMarshal.load(str)
+    #print str; print "\n"
+    o2
   end
 
   def marshal_equal(o1)
@@ -55,10 +56,12 @@ class AMarshalTest < RUNIT::TestCase
     marshal_equal({1=>2, 3=>4})
     h = Hash.new(:default)
     h[5] = 6
-    marshal_equal(h) {|o| [o, o.default]}
+    marshal_equal(h)
     h = MyHash.new(7, 8)
     h[4] = 5
-    marshal_equal(h) {|o| [o, o.default]}
+    marshal_equal(h)
+    h = Hash.new {}
+    assert_exception(TypeError) { marshaltest(h) }
   end
 
   def test_bignum

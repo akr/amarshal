@@ -5,6 +5,10 @@
 * X.new, X[...] などをもっと使う
 * pretty-print を使ってインデント
 
+* instance_variable_set をメソッドチェイン可能にする。
+* メソッドチェインを使う
+* XXX.am_new みたいなものをつくるほうがいい?
+
 =end
 require 'amarshal'
 require 'pp'

@@ -124,6 +124,7 @@ end
 
 class Hash
   def am_allocinit(alloc_proc, init_proc)
+    raise TypeError.new("can't dump #{self.class} with default proc") if self.default_proc
     super
     self.each {|k, v| init_proc.call(:[]=, k, v)}
     init_proc.call(:default=, self.default) if self.default != nil
