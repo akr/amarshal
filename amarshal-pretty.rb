@@ -12,6 +12,7 @@ amarshal-pretty is highly experimental.
 =end
 
 require 'amarshal'
+require 'prettyprint'
 require 'pp'
 
 module AMarshal
@@ -132,7 +133,7 @@ module AMarshal
 	  AMarshal.dump_call(@port, name, init_method,
 	                     init_args.map {|arg| templates.fetch(arg.__id__) { visit(arg) }})
 	}
-	name
+	result = name
       else
 	obj.am_nameinit(
 	  lambda {|name| @names[id] = name},
@@ -141,46 +142,29 @@ module AMarshal
 	  }) and
 	  return @names[id]
 
+	template = nil
 	inits = []
-
-	lit = nil
-	obj.am_litinit(lambda {|lit|}, lambda {|init| inits << init}) and
-	  begin
-	    if 1 < @count[id] || !inits.empty?
-	      @names[id] = name = gensym
-	      @port << "#{name} = #{lit}\n"
-	      inits.each {|init_method, *init_args|
-		AMarshal.dump_call(@port, name, init_method, init_args.map {|arg| visit(arg)})
-	      }
-	      return name
-	    else
-	      @names[id] = :should_not_refer
-	      return lit
-	    end
-	  end
-
-	alloc = nil
-	obj.am_allocinit(lambda {|alloc|}, lambda {|init| inits << init})
-
-	alloc_receiver, alloc_method, *alloc_args = alloc
-	receiver = visit(alloc_receiver)
-	args = alloc_args.map {|arg| visit(arg)}
+	obj.am_templateinit(lambda {|template|}, lambda {|init| inits << init})
+	template.map_object! {|o| visit(o)}
+	  
 	if 1 < @count[id] || !inits.empty?
 	  @names[id] = name = gensym
-	  @port << "#{name} = "
-	  AMarshal.dump_call(@port, receiver, alloc_method, args)
+	  @port << "#{name} = #{template.to_s}\n"
 	  inits.each {|init_method, *init_args|
 	    AMarshal.dump_call(@port, name, init_method, init_args.map {|arg| visit(arg)})
 	  }
+	  result = name
 	else
 	  @names[id] = :should_not_refer
-	  return '(' + AMarshal.dump_call('', receiver, alloc_method, args).chomp + ')'
+	  result = Template.new
+	  result.add_string '('
+	  result.add_object template
+	  result.add_string ')'
 	end
       end
 
       @visiting.delete id
-
-      @names[id]
+      result
     end
 
     def visit_second(obj, id)
@@ -238,6 +222,62 @@ class Array
       t.add_string ']'
     end
     t
+  end
+
+  def AMarshal.template_call(receiver, method, args)
+    t = AMarshal::Template.new
+    case method
+    when :[]=
+      t.add_object receiver
+      t.add_string '['
+      t.add_object args[0]
+      t.add_string '] = '
+      t.add_object args[1]
+    when :<<
+      t.add_object receiver
+      t.add_string ' << '
+      t.add_object args[0]
+    else
+      method = method.to_s
+      if /\A([A-Za-z_][0-9A-Za-z_]*)=\z/ =~ method
+	t.add_object receiver
+	t.add_string ".#{$1} = "
+	t.add_object args[0]
+      else
+	t.add_object receiver
+	t.add_string "."
+	t.add_string method
+	unless args.empty?
+	  t.add_string "("
+	  first = true
+	  args.each {|arg|
+	    t.add_string "," unless first
+	    t.add_object arg
+	    first = false
+	  }
+	  t.add_string ")"
+	end
+      end
+    end
+    t
+  end
+end
+
+class Object
+  def am_templateinit(template_proc, init_proc)
+    am_litinit(
+      lambda {|lit|
+	t = AMarshal::Template.new
+	t.add_string lit
+        template_proc.call(t)
+      },
+      init_proc) ||
+    am_allocinit(
+      lambda {|alloc_receiver, alloc_method, *alloc_args|
+	t = AMarshal.template_call(alloc_receiver, alloc_method, alloc_args)
+	template_proc.call(t)
+      },
+      init_proc)
   end
 end
 
