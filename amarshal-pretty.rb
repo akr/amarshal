@@ -11,7 +11,6 @@ amarshal-pretty is highly experimental.
 
 require 'amarshal'
 require 'rubyexpression'
-require 'pp'
 
 module AMarshal
   def AMarshal.dump_pretty(obj, port='')
