@@ -1,0 +1,50 @@
+= amarshal - marshal a Ruby object as Ruby code
+
+AMarshal is a library for marshaling a Ruby object as a Ruby code. It can
+marshal objects which have cyclic reference.
+
+== Author
+Tanaka Akira <akr@fsij.org>
+
+== Home Page
+http://www.a-k-r.org/amarshal/
+
+== Usage
+
+AMarshal is similar to Marshal.
+
+  % ruby -ramarshal -e 'AMarshal.dump([1,2,3], STDOUT)'
+  v = []
+  v[0] = Array.allocate()
+  v[0] << 1
+  v[0] << 2
+  v[0] << 3
+  v[0]
+
+Highly experimental pretty printing version also exists:
+
+  % ruby -ramarshal-pretty -e '
+    o = [1,2]
+    o << [[3], [[4]], [[[o]]]]
+    o = [5, o, [[[o]]], o]
+    AMarshal.dump_pretty(o, STDOUT)'
+  v = []
+  v[0] = Array.allocate
+  v[0] << 1
+  v[0] << 2
+  v[0] << [[3], [[4]], [[[v[0]]]]]
+  [5, v[0], [[[v[0]]]], v[0]]
+
+== Requirements
+
+* ruby 1.8.0 (2003-04-10) (older version doesn't work.)
+
+== Download
+
+* latest release: http://www.a-k-r.org/amarshal/amarshal-0.4.tar.gz
+
+* development version in CVS repository:
+
+  http://cvs.m17n.org/viewcvs/ruby/amarshal/ or checkout with:
+
+    % cvs -d :pserver:anonymous@cvs.m17n.org:/cvs/ruby co amarshal
