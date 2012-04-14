@@ -43,8 +43,4 @@ Highly experimental pretty printing version also exists:
 
 * latest release: http://www.a-k-r.org/amarshal/amarshal-0.4.tar.gz
 
-* development version in CVS repository:
-
-  http://cvs.m17n.org/viewcvs/ruby/amarshal/ or checkout with:
-
-    % cvs -d :pserver:anonymous@cvs.m17n.org:/cvs/ruby co amarshal
+* development version: https://github.com/akr/amarshal
